@@ -8358,6 +8358,9 @@ Game_Player.prototype.executeMove = function(direction) {
 };
 
 Game_Player.prototype.update = function(sceneActive) {
+    const lastX = this.x;
+    const lastY = this.y;
+
     const lastScrolledX = this.scrolledX();
     const lastScrolledY = this.scrolledY();
     const wasMoving = this.isMoving();
@@ -8372,6 +8375,10 @@ Game_Player.prototype.update = function(sceneActive) {
         this.updateNonmoving(wasMoving, sceneActive);
     }
     this._followers.update();
+
+    if (this.x !== lastX || this.y !== lastY) {
+        ColyseusUtils.sendMovement(0, this.x, this.y, this.realMoveSpeed() == 5);
+    }
 };
 
 Game_Player.prototype.updateDashing = function() {
@@ -8725,7 +8732,11 @@ Game_Follower.prototype.constructor = Game_Follower;
 Game_Follower.prototype.initialize = function(memberIndex) {
     Game_Character.prototype.initialize.call(this);
     this._memberIndex = memberIndex;
-    this.setTransparent($dataSystem.optTransparent);
+    this._targetX = undefined;
+    this._targetY = undefined;
+    this._externalPlayer = undefined;
+    this._isRunning = false;
+    this.setTransparent(false);
     this.setThrough(true);
 };
 
@@ -8749,13 +8760,29 @@ Game_Follower.prototype.isGathered = function() {
 
 Game_Follower.prototype.update = function() {
     Game_Character.prototype.update.call(this);
-    this.setMoveSpeed($gamePlayer.realMoveSpeed());
-    this.setOpacity($gamePlayer.opacity());
-    this.setBlendMode($gamePlayer.blendMode());
-    this.setWalkAnime($gamePlayer.hasWalkAnime());
-    this.setStepAnime($gamePlayer.hasStepAnime());
-    this.setDirectionFix($gamePlayer.isDirectionFixed());
-    this.setTransparent($gamePlayer.isTransparent());
+    // this.setMoveSpeed($gamePlayer.realMoveSpeed());
+    // this.setOpacity($gamePlayer.opacity());
+    // this.setBlendMode($gamePlayer.blendMode());
+    // this.setWalkAnime($gamePlayer.hasWalkAnime());
+    // this.setStepAnime($gamePlayer.hasStepAnime());
+    // this.setDirectionFix($gamePlayer.isDirectionFixed());
+    // this.setTransparent($gamePlayer.isTransparent());
+
+    if (this.x === this._targetX) {
+        this._targetX = undefined;
+    }
+    if (this.y === this._targetY) {
+        this._targetY = undefined;
+    }
+
+    if (this._targetX || this._targetX === 0 || this._targetY || this._targetY === 0) {
+        this.chaseCoords(this._targetX, this._targetY);
+        this.setMoveSpeed(this._isRunning ? 5 : 4);
+    }
+};
+
+Game_Follower.prototype.chaseCoords = function(x, y) {
+    this.moveStraight(this.findDirectionTo(x || this.x, y || this.y));
 };
 
 Game_Follower.prototype.chaseCharacter = function(character) {
@@ -8784,14 +8811,76 @@ Game_Followers.prototype.initialize = function() {
     this._visible = $dataSystem.optFollowers;
     this._gathering = false;
     this._data = [];
+    this._playerMap = {};
+    this._startingPos = {x: 0, y: 0};
+    this._startingPosInit = false;
     this.setup();
 };
 
 Game_Followers.prototype.setup = function() {
     this._data = [];
-    for (let i = 1; i < $gameParty.maxBattleMembers(); i++) {
-        this._data.push(new Game_Follower(i));
+
+    for (let i = 0; i < 99; i++) {
+        const newFollower = new Game_Follower(i+1);
+        newFollower.setTransparent(true);
+        newFollower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
+        this._data.push(newFollower);
     }
+
+    ColyseusUtils.getPlayers().forEach(p => this.onPlayerJoined(p));
+
+    ColyseusUtils.onStateChange(() => {
+        this.updateMove();
+    });
+
+    ColyseusUtils.onPlayerJoined((p) => {
+        if (p) {
+            const follower = this.getBySessionId(p.sessionId);
+            if (follower) {
+                // TODO do
+            } else {
+                this.onPlayerJoined(p);
+            }
+        }
+    });
+
+    ColyseusUtils.onPlayerLeft((sessionId) => {
+        const follower = this.getBySessionId(sessionId);
+        if (follower) {
+            follower.setTransparent(true);
+            follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
+            this._playerMap[sessionId] = undefined;
+            delete this._playerMap[sessionId];
+        }
+    });
+};
+
+Game_Followers.prototype.getStartingPos = function () {
+    if (!this._startingPosInit && $dataMap && $dataMap.events) {
+        const spawnEvent = DataManager.getEventByName('SPAWN');
+        this._startingPos = {x: spawnEvent.x, y: spawnEvent.y};
+        this._startingPosInit = true;
+    }
+
+    return this._startingPos;
+};
+
+Game_Followers.prototype.onPlayerJoined = function(p) {
+    const follower = this._data.find(f => f.isTransparent());
+    follower.setTransparent(false);
+    follower._isRunning = p.isRunning;
+    follower._externalPlayer = p;
+    follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
+    follower.refresh();
+    this._playerMap[p.sessionId] = follower;
+};
+
+Game_Followers.prototype.getBySessionId = function(sessionId) {
+    return this._playerMap[sessionId];
+};
+
+Game_Followers.prototype.getActive = function() {
+    return Object.keys(this._playerMap).map(k => this._playerMap[k]);
 };
 
 Game_Followers.prototype.isVisible = function() {
@@ -8819,7 +8908,7 @@ Game_Followers.prototype.follower = function(index) {
 };
 
 Game_Followers.prototype.refresh = function() {
-    for (const follower of this._data) {
+    for (const follower of this.getActive()) {
         follower.refresh();
     }
 };
@@ -8827,27 +8916,29 @@ Game_Followers.prototype.refresh = function() {
 Game_Followers.prototype.update = function() {
     if (this.areGathering()) {
         if (!this.areMoving()) {
-            this.updateMove();
+            // this.updateMove();
         }
         if (this.areGathered()) {
             this._gathering = false;
         }
     }
-    for (const follower of this._data) {
-        follower.update();
-    }
+    this.getActive().forEach(f => f.update());
 };
 
 Game_Followers.prototype.updateMove = function() {
-    for (let i = this._data.length - 1; i >= 0; i--) {
-        const precedingCharacter = i > 0 ? this._data[i - 1] : $gamePlayer;
-        this._data[i].chaseCharacter(precedingCharacter);
-    }
+    this.getActive().forEach(gf => {
+        const p = ColyseusUtils.getPlayer(gf._externalPlayer.sessionId);
+        if (p) {
+            gf._targetX = p.x !== gf._x ? p.x : undefined;
+            gf._targetY = p.y !== gf._y ? p.y : undefined;
+            gf._isRunning = p.isRunning;
+        }
+    });
 };
 
 Game_Followers.prototype.jumpAll = function() {
     if ($gamePlayer.isJumping()) {
-        for (const follower of this._data) {
+        for (const follower of this.getActive()) {
             const sx = $gamePlayer.deltaXFrom(follower.x);
             const sy = $gamePlayer.deltaYFrom(follower.y);
             follower.jump(sx, sy);
@@ -8856,7 +8947,7 @@ Game_Followers.prototype.jumpAll = function() {
 };
 
 Game_Followers.prototype.synchronize = function(x, y, d) {
-    for (const follower of this._data) {
+    for (const follower of this.getActive()) {
         follower.locate(x, y);
         follower.setDirection(d);
     }

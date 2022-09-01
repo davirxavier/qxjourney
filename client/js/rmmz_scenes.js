@@ -650,6 +650,11 @@ Scene_Map.prototype.initialize = function() {
     this._mapLoaded = false;
     this._touchCount = 0;
     this._menuEnabled = false;
+
+    ColyseusUtils.getPlayers().forEach((p, i) => {
+        const actor = $gameActors.actor(i+1);
+        actor['externalPlayer'] = p;
+    });
 };
 
 Scene_Map.prototype.create = function() {
