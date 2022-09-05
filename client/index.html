@@ -11,7 +11,7 @@
     <script src="js/libs/colyseus.js"></script>
     <script src="js/libs/colyseus_utils.js"></script>
     <script>
-        ColyseusUtils.init('ws://' + window.location.host + window.location.pathname + '../')
+        ColyseusUtils.init('ws://' + window.location.host + window.location.pathname + '/../')
             .then(() => {
                 const gameFrame = document.createElement('iframe');
                 gameFrame.style = 'width: 98vw; height: 100vh;';
