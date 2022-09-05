@@ -1,7 +1,8 @@
 mkdir dist || 1
 mkdir dist/server || 1
-cd server
-npm run build
-mv dist/* ../dist/server
-cd ..
-cp -r client dist
+cd server || exit
+npm install || exit
+npm run build || exit
+mv dist/* ../dist/server || exit
+cd .. || exit
+cp -r client dist || exit
