@@ -1,16 +1,24 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="viewport" content="user-scalable=no">
-        <link rel="icon" href="icon/icon.png" type="image/png">
-        <link rel="apple-touch-icon" href="icon/icon.png">
-        <link rel="stylesheet" type="text/css" href="css/game.css">
-        <title>Project1</title>
-    </head>
-    <body style="background-color: black">
-        <script type="text/javascript" src="js/main.js"></script>
-    </body>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <script src="js/libs/colyseus.js"></script>
+    <script src="js/libs/colyseus_utils.js"></script>
+    <script>
+        ColyseusUtils.init('ws://' + window.location.host + window.location.pathname + '../')
+            .then(() => {
+                const gameFrame = document.createElement('iframe');
+                gameFrame.style = 'width: 98vw; height: 100vh;';
+                gameFrame.src = 'game.html';
+
+                document.body.appendChild(gameFrame);
+            });
+    </script>
+</body>
 </html>

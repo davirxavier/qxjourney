@@ -149,3 +149,4 @@ package-lock.json
 */.idea
 .iml
 
+dist/*
