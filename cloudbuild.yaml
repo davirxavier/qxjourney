@@ -12,7 +12,7 @@ steps:
     args:
       - "-c"
       - |
-        gcloud compute ssh ${_ACCOUNT_NAME}@${_INSTANCE_NAME} --project=$PROJECT_ID --zone=${_VM_REGION} -- 'cd ${_FOLDER}/scripts && docker-compose up -d'
+        gcloud compute ssh ${_ACCOUNT_NAME}@${_INSTANCE_NAME} --project=$PROJECT_ID --zone=${_VM_REGION} -- 'cd ${_FOLDER}/scripts && docker compose up -d'
     waitFor: ['imgs']
     
 options:
