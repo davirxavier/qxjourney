@@ -8,18 +8,30 @@
     <title>Document</title>
 </head>
 <body>
+    <div id="nameContainer">
+        <label for="nameField">Seu nome</label>
+        <input id="nameField" type="text"/>
+        <button onclick="load()">Confirmar</button>
+    </div>
+
     <script src="js/libs/colyseus.js"></script>
     <script src="js/libs/colyseus_utils.js"></script>
     <script>
-        const protocol = window.location.href.startsWith('https') ? 'wss' : 'ws';
-        ColyseusUtils.init(protocol + '://' + window.location.host + window.location.pathname + '/../../ws')
-            .then(() => {
-                const gameFrame = document.createElement('iframe');
-                gameFrame.style = 'width: 98vw; height: 100vh;';
-                gameFrame.src = 'game.html';
+        var colyseusPlayerName = undefined;
+        function load() {
+            document.getElementById('nameContainer').style = 'display: none;';
+            const name = document.getElementById('nameField').value;
 
-                document.body.appendChild(gameFrame);
-            });
+            const protocol = window.location.href.startsWith('https') ? 'wss' : 'ws';
+            ColyseusUtils.init(protocol + '://' + window.location.host + window.location.pathname + '/../../ws')
+                .then(() => {
+                    const gameFrame = document.createElement('iframe');
+                    gameFrame.style = 'width: 98vw; height: 100vh;';
+                    gameFrame.src = 'game.html';
+
+                    document.body.appendChild(gameFrame);
+                });
+        }
     </script>
 </body>
 </html>
