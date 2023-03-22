@@ -7,13 +7,5 @@ steps:
         gcloud compute ssh ${_ACCOUNT_NAME}@${_INSTANCE_NAME} --project=$PROJECT_ID --zone=${_VM_REGION} -- 'curl https://raw.githubusercontent.com/davirxavier/qxjourney/main/scripts/buildimages.sh > buildqxjourney.sh && chmod +x buildqxjourney.sh && sudo ./buildqxjourney.sh ${_FOLDER} "${_REPO_URL}"'
     id: 'imgs'
 
-  - name: gcr.io/cloud-builders/gcloud
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        gcloud compute ssh ${_ACCOUNT_NAME}@${_INSTANCE_NAME} --project=$PROJECT_ID --zone=${_VM_REGION} -- 'cd ${_FOLDER}/scripts && docker-compose up -d'
-    waitFor: ['imgs']
-
 options:
   logging: CLOUD_LOGGING_ONLY
