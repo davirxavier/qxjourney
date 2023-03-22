@@ -6,6 +6,7 @@ import {GameRoom} from "./game.room";
 
 const app = express();
 app.use(express.json());
+app.use('/jogo', express.static('../client'));
 
 app.get('/', (req, res) => {
   res.status(200);
@@ -17,9 +18,9 @@ const gameServer = new Server({
   presence: new LocalPresence()
 });
 
-gameServer.define('main_room', GameRoom);
+gameServer.define('main_room', GameRoom).enableRealtimeListing();
 
-const port = 3000;
+const port = parseInt(process.env.NODE_SERVER_PORT) || parseInt(process.argv[0]) || 3001;
 gameServer.listen(port).then( () => {
   return console.log(`server is listening on ${port}`);
 });

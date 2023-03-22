@@ -1,11 +1,12 @@
 {
-  "name": "QXJourney Servidor",
-  "version": "1.0",
+  "name": "qxjurney-servidor",
+  "version": "1.0.0",
   "description": "",
   "main": "dist/app.js",
   "scripts": {
     "start": "tsc && node dist/app.js",
     "start:dev": "tsc && nodemon src/app.ts",
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

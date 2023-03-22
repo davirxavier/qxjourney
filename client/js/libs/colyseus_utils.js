@@ -1,10 +1,10 @@
-const ColyseusUtils = {
+var ColyseusUtils = {
 
     colyseusClient: undefined,
     colyseusRoom: undefined,
 
-    init: async () => {
-        ColyseusUtils.colyseusClient = new Colyseus.Client('ws://localhost:3000');
+    init: async (url) => {
+        ColyseusUtils.colyseusClient = new Colyseus.Client(url);
         return ColyseusUtils.colyseusClient.joinOrCreate("main_room").then(rc => {
             ColyseusUtils.colyseusRoom = rc;
         });
