@@ -7,5 +7,5 @@ else
   git clone "$REPO_LINK" "$REPO_DIR"
 fi
 
-docker build -t qxjourney-client -f "$REPO_DIR/client/docker/Dockerfile" "$REPO_DIR/client"
-docker build -t qxjourney-server "$REPO_DIR/server"
+sudo docker build -t qxjourney-client -f "$REPO_DIR/client/docker/Dockerfile" "$REPO_DIR/client"
+sudo docker build -t qxjourney-server "$REPO_DIR/server"
