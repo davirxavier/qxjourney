@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>QxJourney - Jogo</title>
+    <link href="/game/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        @media (max-width: 1000px) {
+            #nameContainer label, button {
+                font-size: 6vw !important;
+            }
+
+            #nameContainer h2 {
+                font-size: 9vw !important;
+            }
+
+            #nameContainer #nameField {
+                width: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="nameContainer" class="w-100 d-flex flex-column align-items-center justify-content-center px-5" style="height: 100vh">
+        <h2 style="font-size: 4vw;" class="fw-bold">QxJourney</h2>
+        <label for="nameField" class="w-100 text-center" style="font-size: 3vw;">Qual é o seu nome?</label>
+        <input id="nameField" class="w-50 form-control form-control-lg mt-4 text-center" type="text" placeholder="Seu nome" aria-label=".form-control-lg example">
+        <button onclick="load()" class="mt-4 btn btn-primary" style="font-size: 2vw;">Iniciar jogo!</button>
+    </div>
+
+    <script src="js/libs/colyseus.js"></script>
+    <script src="js/libs/colyseus_utils.js"></script>
+    <script>
+        var colyseusPlayerName = undefined;
+        function load() {
+            document.getElementById('nameContainer').style = 'display: none !important;';
+            const name = document.getElementById('nameField').value;
+
+            const protocol = window.location.href.startsWith('https') ? 'wss' : 'ws';
+            ColyseusUtils.init(protocol + '://' + window.location.host + window.location.pathname + '/../../ws')
+                .then(() => {
+                    const gameFrame = document.createElement('iframe');
+                    gameFrame.style = 'width: 100vw; height: 100vh;';
+                    gameFrame.src = 'game.html';
+
+                    document.body.appendChild(gameFrame);
+                });
+        }
+    </script>
+    <script src="/game/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

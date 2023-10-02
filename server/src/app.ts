@@ -6,11 +6,15 @@ import {GameRoom} from "./game.room";
 
 const app = express();
 app.use(express.json());
-app.use('/jogo', express.static('../client'));
+app.use('/', express.static('static'));
 
 app.get('/', (req, res) => {
-  res.status(200);
-  res.send('Hello World!');
+  res.redirect('/game');
+});
+
+// Not found path
+app.get('*', (req, res) => {
+  res.sendFile(__dirname + '/pages/not_found.html');
 });
 
 const gameServer = new Server({
