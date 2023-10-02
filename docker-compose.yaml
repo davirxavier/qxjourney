@@ -1,10 +1,6 @@
 version: '3.8'
 
 services:
-  qxj-client:
-    image: qxjourney-client
-    ports:
-      - "8080:80"
   qxj-server:
     image: qxjourney-server
     environment:

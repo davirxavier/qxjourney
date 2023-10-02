@@ -3,9 +3,9 @@ var ColyseusUtils = {
     colyseusClient: undefined,
     colyseusRoom: undefined,
 
-    init: async (url) => {
+    init: async (url, name = undefined) => {
         ColyseusUtils.colyseusClient = new Colyseus.Client(url);
-        return ColyseusUtils.colyseusClient.joinOrCreate("main_room").then(rc => {
+        return ColyseusUtils.colyseusClient.joinOrCreate("main_room", {name: name}).then(rc => {
             ColyseusUtils.colyseusRoom = rc;
         });
     },

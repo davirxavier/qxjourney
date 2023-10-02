@@ -6,11 +6,15 @@ import {GameRoom} from "./game.room";
 
 const app = express();
 app.use(express.json());
-app.use('/jogo', express.static('../client'));
+app.use('/', express.static('static'));
 
 app.get('/', (req, res) => {
-  res.status(200);
-  res.send('Hello World!');
+  res.redirect('/game');
+});
+
+// Not found path
+app.get('*', (req, res) => {
+  res.sendFile(__dirname + '/pages/not_found.html');
 });
 
 const gameServer = new Server({
@@ -20,7 +24,7 @@ const gameServer = new Server({
 
 gameServer.define('main_room', GameRoom).enableRealtimeListing();
 
-const port = parseInt(process.env.NODE_SERVER_PORT) || parseInt(process.argv[0]) || 3001;
+const port = parseInt(process.env.NODE_SERVER_PORT, 10) || parseInt(process.argv[0], 10) || 3001;
 gameServer.listen(port).then( () => {
   return console.log(`server is listening on ${port}`);
 });

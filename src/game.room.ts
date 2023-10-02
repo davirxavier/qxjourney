@@ -3,6 +3,9 @@ import {Client, Room} from "colyseus";
 
 export class Player extends Schema {
 
+    @type("string")
+    name = "Anônimo";
+
     @type("number")
     mapNum = 0;
 
@@ -24,8 +27,9 @@ export class GameState extends Schema {
 
     something = "This attribute won't be sent to the client-side";
 
-    createPlayer(sessionId: string) {
+    createPlayer(sessionId: string, name: string) {
         const p = new Player();
+        p.name = name;
         this.players.set(sessionId, p);
         return {...p, sessionId};
     }
@@ -55,9 +59,9 @@ export class GameRoom extends Room<GameState> {
         });
     }
 
-    onJoin(client: Client) {
+    onJoin(client: Client, options) {
         client.send("hello", "world");
-        this.broadcast('joined', this.state.createPlayer(client.sessionId));
+        this.broadcast('joined', this.state.createPlayer(client.sessionId, options.name));
     }
 
     onLeave(client: Client, consented?: boolean): void | Promise<any> {

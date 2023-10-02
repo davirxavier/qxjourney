@@ -1,6 +1,0 @@
-**/Dockerfile
-**/.dockerignore
-**/package.json
-**/composer.json
-**/game.rmmzproject
-**/.idea
