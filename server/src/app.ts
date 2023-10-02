@@ -24,7 +24,7 @@ const gameServer = new Server({
 
 gameServer.define('main_room', GameRoom).enableRealtimeListing();
 
-const port = parseInt(process.env.NODE_SERVER_PORT) || parseInt(process.argv[0]) || 3001;
+const port = parseInt(process.env.NODE_SERVER_PORT, 10) || parseInt(process.argv[0], 10) || 3001;
 gameServer.listen(port).then( () => {
   return console.log(`server is listening on ${port}`);
 });
