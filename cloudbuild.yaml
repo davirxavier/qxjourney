@@ -4,7 +4,7 @@ steps:
     args:
       - "-c"
       - |
-        gcloud compute ssh ${_ACCOUNT_NAME}@${_INSTANCE_NAME} --project=$PROJECT_ID --zone=${_VM_REGION} -- 'curl ${_SCRIPT_PATH} > buildqxjourney.sh && chmod +x buildqxjourney.sh && sudo ./buildqxjourney.sh ${_FOLDER} "${_REPO_URL}"'
+        gcloud compute ssh ${_ACCOUNT_NAME}@${_INSTANCE_NAME} --project=$PROJECT_ID --zone=${_VM_REGION} -- 'curl ${_SCRIPT_PATH} > buildqxjourney.sh && chmod +x buildqxjourney.sh && sudo ./buildqxjourney.sh ${_FOLDER} "${_REPO_URL}" "qxjourney-server"'
     id: 'imgs'
 
   - name: gcr.io/cloud-builders/gcloud
@@ -12,7 +12,7 @@ steps:
     args:
       - "-c"
       - |
-        gcloud compute ssh ${_ACCOUNT_NAME}@${_INSTANCE_NAME} --project=$PROJECT_ID --zone=${_VM_REGION} -- 'cd ${_FOLDER}/scripts && sudo docker compose up -d'
+        gcloud compute ssh ${_ACCOUNT_NAME}@${_INSTANCE_NAME} --project=$PROJECT_ID --zone=${_VM_REGION} -- 'cd ${_FOLDER} && sudo docker compose up -d'
     waitFor: ['imgs']
     
 options:
