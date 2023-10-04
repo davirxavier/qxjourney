@@ -8,13 +8,9 @@ const app = express();
 app.use(express.json());
 app.use('/', express.static('static'));
 
-app.get('/', (req, res) => {
-  res.redirect('/game');
-});
-
 // Not found path
 app.get('*', (req, res) => {
-  res.sendFile(__dirname + '/pages/not_found.html');
+  res.sendFile(__dirname + 'pages/not_found.html');
 });
 
 const gameServer = new Server({
