@@ -4,6 +4,7 @@ services:
   qxj-server:
     image: qxjourney-server
     pull_policy: build
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
