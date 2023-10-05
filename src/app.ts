@@ -14,7 +14,7 @@ app.get('*', (req, res) => {
 });
 
 const gameServer = new Server({
-  transport: new WebSocketTransport({server: createServer(app)}),
+  transport: new WebSocketTransport({server: createServer(app), path: process.env.BASE_PATH}),
   presence: new LocalPresence()
 });
 
