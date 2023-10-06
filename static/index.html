@@ -5,7 +5,7 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <base href="/qxjourney/">
+    <base href="/">
     <title>QxJourney</title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
 
@@ -13,6 +13,23 @@
         body {
             background-color: #1a1d20;
             color: #f8f9fa !important;
+        }
+
+        #roomListing {
+            display: none !important;
+            min-height: 70vh;
+        }
+
+        #roomListing > * {
+            width: fit-content;
+        }
+
+        #roomListing > div > div {
+            height: fit-content;
+        }
+
+        #createRoom {
+            display: none !important;
         }
 
         @media (max-width: 1000px) {
@@ -34,14 +51,43 @@
     <div id="nameContainer" class="w-100 d-flex flex-column align-items-center justify-content-center px-5" style="height: 100vh">
         <h2 style="font-size: 4vw;" class="fw-bold">QxJourney</h2>
         <label for="nameField" class="w-100 text-center" style="font-size: 3vw;">Qual é o seu nome?</label>
-        <input id="nameField" class="w-50 form-control form-control-lg mt-4 text-center" type="text" placeholder="Seu nome" minlength="1" required>
+        <input id="nameField" class="w-50 form-control form-control-lg mt-4 text-center" type="text" placeholder="Seu nome" minlength="1">
         <button onclick="load()" class="mt-4 btn btn-primary" style="font-size: 2vw;">Iniciar jogo!</button>
+    </div>
+
+    <div id="roomListing" class="d-flex flex-column justify-content-start align-items-center mx-5">
+        <h2 style="font-size: 3vw;" class="fw-bold my-1">QxJourney</h2>
+        <label style="font-size: 2vw;">Entre em uma sala!</label>
+    </div>
+
+    <div id="createRoom" class="d-flex flex-column align-items-center justify-content-center mx-5">
+        <hr class="w-100">
+        <label for="roomNameField" style="font-size: 2vw;">Ou crie uma sala nova:</label>
+        <div class="d-flex flex-column justify-content-center align-items-center">
+            <input id="roomNameField" type="text" placeholder="Nome da sala" class="form-control form-control-sm mb-2">
+            <input id="roomMaxField" type="number" max="99" placeholder="Jogadores máximos" class="form-control form-control-sm">
+            <button onclick="create()" style="font-size: 3vw !important;" class="btn btn-primary btn-sm mt-1 w-100">Criar!</button>
+        </div>
     </div>
 
     <script src="js/libs/colyseus.js"></script>
     <script src="js/libs/colyseus_utils.js"></script>
     <script>
         var colyseusPlayerName = undefined;
+        var isInit = false;
+
+        function loadFrame() {
+            document.getElementById('nameContainer').style = 'display: none !important;';
+            document.getElementById('roomListing').style = 'display: none !important;';
+            document.getElementById('createRoom').style = 'display: none !important;';
+
+            const gameFrame = document.createElement('iframe');
+            gameFrame.style = 'width: 100vw; height: 100vh;';
+            gameFrame.src = 'game.html';
+
+            document.body.appendChild(gameFrame);
+        }
+
         function load() {
             const nameField = document.getElementById('nameField');
             const name = nameField.value;
@@ -50,17 +96,73 @@
                 return;
             }
 
-            document.getElementById('nameContainer').style = 'display: none !important;';
+            colyseusPlayerName = name;
 
-            const protocol = window.location.href.startsWith('https') ? 'wss' : 'ws';
-            ColyseusUtils.init(protocol + '://' + window.location.host + window.location.pathname + '/../../ws', name)
+            ColyseusUtils.onUpdateRoomsCallback = (updateType, roomId, room) => {
+                const addFn = (roomId, room) => {
+                    if (document.getElementById('room-' + roomId)) {
+                        document.getElementById(`room-${roomId}-clients`).innerText = `${room.clients} jogadores (máximo de ${room.maxClients} jogadores)`;
+                        return;
+                    }
+
+                    const upperCont = document.createElement('div');
+                    upperCont.classList.add('room-upper-cont');
+                    upperCont.id = 'room-' + roomId;
+
+                    upperCont.innerHTML = `
+                        <hr>
+                        <div class="room-cont d-flex my-4 justify-content-between align-items-center">
+                            <div class="d-flex">
+                                <h4 class="fw-bold">${room.metadata.roomName}</h4>
+                                <h4 class="px-5" id="room-${roomId}-clients">${room.clients} ${(room.clients > 1 ? 'jogadores' : 'jogador')} (máximo de ${room.maxClients} jogadores)</h4>
+                            </div>
+                            <button onclick="join('${roomId}')" class="btn btn-primary" style="font-size: 2vw;">Entrar</button>
+                        </div>
+                        <hr>
+                    `;
+
+                    document.getElementById('roomListing').appendChild(upperCont);
+                };
+
+                if (updateType === "+") {
+                    addFn(roomId, room);
+                } else if (updateType === "-") {
+                    document.getElementById('room-' + roomId).remove();
+                } else {
+                    document.querySelectorAll('div[id^=room-]').forEach(n => n.remove());
+                    ColyseusUtils.roomsAvailable.forEach(r => addFn(r.roomId, r));
+                }
+            };
+
+            if (!isInit) {
+                isInit = true;
+                ColyseusUtils.init('ws://' + window.location.host + window.location.pathname + '/ws', name, "teste")
+                    .then(() => {
+                        document.getElementById('nameContainer').style = 'display: none !important;';
+                        document.getElementById('roomListing').style = 'display: flex !important;';
+                        document.getElementById('createRoom').style = 'display: flex !important;';
+                    }).catch(e => isInit = false);
+            }
+        }
+
+        function create() {
+            const roomName = document.getElementById('roomNameField').value;
+            const max = document.getElementById('roomMaxField').value;
+
+            if (!roomName || !max) {
+                return;
+            }
+
+            ColyseusUtils.createRoomAndJoin(colyseusPlayerName, roomName, max)
                 .then(() => {
-                    const gameFrame = document.createElement('iframe');
-                    gameFrame.style = 'width: 100vw; height: 100vh;';
-                    gameFrame.src = 'game.html';
-
-                    document.body.appendChild(gameFrame);
+                    loadFrame();
                 });
+        }
+
+        function join(roomId) {
+            ColyseusUtils.joinRoom(colyseusPlayerName, roomId).then(() => {
+                loadFrame();
+            });
         }
     </script>
     <script src="js/bootstrap.bundle.min.js"></script>

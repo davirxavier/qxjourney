@@ -8377,7 +8377,7 @@ Game_Player.prototype.update = function(sceneActive) {
     this._followers.update();
 
     if (this.x !== lastX || this.y !== lastY) {
-        ColyseusUtils.sendMovement(0, this.x, this.y, this.realMoveSpeed() == 5);
+        ColyseusUtils.sendMovement(0, this.x, this.y, this.realMoveSpeed() === 5);
     }
 };
 

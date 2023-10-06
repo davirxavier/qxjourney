@@ -1,5 +1,5 @@
 import express from 'express';
-import {LocalPresence, Server} from "colyseus";
+import {LobbyRoom, LocalPresence, Server} from "colyseus";
 import {WebSocketTransport} from "@colyseus/ws-transport";
 import {createServer} from "http";
 import {GameRoom} from "./game.room";
@@ -10,7 +10,8 @@ app.use('/', express.static('static'));
 
 // Not found path
 app.get('*', (req, res) => {
-  res.sendFile(__dirname + 'pages/not_found.html');
+  res.status(404);
+  res.sendFile(__dirname + '/pages/not_found.html');
 });
 
 const gameServer = new Server({
@@ -18,7 +19,10 @@ const gameServer = new Server({
   presence: new LocalPresence()
 });
 
-gameServer.define('main_room', GameRoom).enableRealtimeListing();
+gameServer.define("lobby", LobbyRoom);
+
+gameServer.define('main_room', GameRoom)
+    .enableRealtimeListing();
 
 const port = parseInt(process.env.NODE_SERVER_PORT, 10) || parseInt(process.argv[0], 10) || 3001;
 gameServer.listen(port).then( () => {

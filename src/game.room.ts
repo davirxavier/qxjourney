@@ -1,5 +1,6 @@
 import {MapSchema, Schema, type} from "@colyseus/schema";
-import {Client, Room} from "colyseus";
+import {Client, Room, updateLobby} from "colyseus";
+import {Events} from "./events";
 
 export class Player extends Schema {
 
@@ -38,7 +39,7 @@ export class GameState extends Schema {
         this.players.delete(sessionId);
     }
 
-    movePlayer (sessionId: string, movement: {map: number, x: number, y: number, isRunning: boolean}) {
+    movePlayer(sessionId: string, movement: {map: number, x: number, y: number, isRunning: boolean}) {
         const p = this.players.get(sessionId);
         p.x = movement.x;
         p.y = movement.y;
@@ -51,22 +52,26 @@ export class GameState extends Schema {
 export class GameRoom extends Room<GameState> {
 
     onCreate(options: any): void | Promise<any> {
-        console.log("GameRoom created!", options);
         this.setState(new GameState());
 
-        this.onMessage('player_move', (client, message) => {
+        this.onMessage(Events.PLAYER_MOVE, (client, message) => {
             this.state.movePlayer(client.sessionId, message);
         });
+
+        this.maxClients = parseInt(options.maxPlayers, 10) || 99;
+        this.setMetadata({
+            roomName: options.roomName
+        }).then(() => updateLobby(this));
     }
 
     onJoin(client: Client, options) {
-        client.send("hello", "world");
-        this.broadcast('joined', this.state.createPlayer(client.sessionId, options.name));
+        client.send(Events.EVENT_LIST, ({...Events}));
+        this.broadcast(Events.PLAYER_JOINED, this.state.createPlayer(client.sessionId, options.name));
     }
 
     onLeave(client: Client, consented?: boolean): void | Promise<any> {
         this.state.removePlayer(client.sessionId);
-        this.broadcast('left', client.sessionId);
+        this.broadcast(Events.PLAYER_LEFT, client.sessionId);
     }
 
 }

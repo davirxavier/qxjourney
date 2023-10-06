@@ -2,12 +2,70 @@ var ColyseusUtils = {
 
     colyseusClient: undefined,
     colyseusRoom: undefined,
+    roomsAvailable: [],
+    onUpdateRoomsCallback: (updateType, roomId, room) => {},
 
-    init: async (url, name = undefined) => {
+    init: async (url) => {
         ColyseusUtils.colyseusClient = new Colyseus.Client(url);
-        return ColyseusUtils.colyseusClient.joinOrCreate("main_room", {name: name}).then(rc => {
-            ColyseusUtils.colyseusRoom = rc;
+
+        const client = ColyseusUtils.colyseusClient;
+        const lobby = await client.joinOrCreate("lobby");
+
+        lobby.onMessage("rooms", (rooms) => {
+            ColyseusUtils.roomsAvailable = rooms;
+
+            if (ColyseusUtils.onUpdateRoomsCallback) {
+                ColyseusUtils.onUpdateRoomsCallback("a");
+            }
         });
+
+        lobby.onMessage("+", ([roomId, room]) => {
+            const allRooms = ColyseusUtils.roomsAvailable;
+
+            const roomIndex = allRooms.findIndex((room) => room.roomId === roomId);
+            if (roomIndex !== -1) {
+                allRooms[roomIndex] = room;
+            } else {
+                allRooms.push(room);
+            }
+
+            if (ColyseusUtils.onUpdateRoomsCallback) {
+                ColyseusUtils.onUpdateRoomsCallback("+", roomId, room);
+            }
+        });
+
+        lobby.onMessage("-", (roomId) => {
+            ColyseusUtils.roomsAvailable = ColyseusUtils.roomsAvailable.filter((room) => room.roomId !== roomId);
+
+            if (ColyseusUtils.onUpdateRoomsCallback) {
+                ColyseusUtils.onUpdateRoomsCallback("-", roomId);
+            }
+        });
+    },
+
+    leaveRoom: () => {
+        if (ColyseusUtils.colyseusRoom) {
+            ColyseusUtils.colyseusRoom.leave(1001);
+            ColyseusUtils.colyseusRoom = undefined;
+        }
+    },
+
+    createRoomAndJoin: async (name, roomName, maxPlayers) => {
+        ColyseusUtils.leaveRoom();
+
+        ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.create('main_room', {
+            name: name,
+            roomName: roomName,
+            maxPlayers: maxPlayers
+        });
+    },
+
+    joinRoom: async (name, roomId) => {
+        if (ColyseusUtils.colyseusRoom && roomId !== ColyseusUtils.colyseusRoom.id) {
+            ColyseusUtils.leaveRoom();
+        }
+
+        ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.joinById(roomId, {name: name});
     },
 
     sendMovement: (map, x, y, isRunning) => {
@@ -28,7 +86,7 @@ var ColyseusUtils = {
 
     getPlayer: (sessId) => {
         if (ColyseusUtils.colyseusRoom.state && ColyseusUtils.colyseusRoom.state.players) {
-            return ColyseusUtils.getPlayers().find(p => p.sessionId == sessId);
+            return ColyseusUtils.getPlayers().find(p => p.sessionId === sessId);
         } else {
             return undefined;
         }
