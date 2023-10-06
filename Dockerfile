@@ -1,4 +1,6 @@
 FROM node:alpine
+RUN apk update && apk add git
+
 WORKDIR /usr/qxjourney-server
 COPY . .
 RUN npm install
