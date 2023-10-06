@@ -136,7 +136,9 @@
 
             if (!isInit) {
                 isInit = true;
-                ColyseusUtils.init('ws://' + window.location.host + window.location.pathname + '/ws', name, "teste")
+                const url = 'ws://' + (window.location + "").replace('http://', '').replace('https://').replace('/', '');
+                console.log(url)
+                ColyseusUtils.init(url, name, "teste")
                     .then(() => {
                         document.getElementById('nameContainer').style = 'display: none !important;';
                         document.getElementById('roomListing').style = 'display: flex !important;';

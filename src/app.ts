@@ -1,10 +1,12 @@
 import express from 'express';
+import expressify from "uwebsockets-express"
 import {LobbyRoom, LocalPresence, Server} from "colyseus";
-import {WebSocketTransport} from "@colyseus/ws-transport";
-import {createServer} from "http";
 import {GameRoom} from "./game.room";
+import {uWebSocketsTransport} from "@colyseus/uwebsockets-transport";
 
-const app = express();
+const transport = new uWebSocketsTransport({});
+const app = expressify(transport.app);
+
 app.use(express.json());
 app.use('/', express.static('static'));
 
@@ -15,7 +17,7 @@ app.get('*', (req, res) => {
 });
 
 const gameServer = new Server({
-  transport: new WebSocketTransport({server: createServer(app), path: process.env.BASE_PATH}),
+  transport,
   presence: new LocalPresence()
 });
 
