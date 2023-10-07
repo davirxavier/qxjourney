@@ -20,6 +20,7 @@
     "typescript": "^4.8.2"
   },
   "dependencies": {
+    "@bdaenen/uwebsockets": "^19.5.0",
     "@colyseus/arena": "^0.14.24",
     "@colyseus/monitor": "^0.14.22",
     "@colyseus/schema": "^1.0.38",
@@ -27,7 +28,6 @@
     "@colyseus/ws-transport": "^0.14.21",
     "colyseus": "^0.14.23",
     "express": "^4.18.1",
-    "http": "^0.0.1-security",
     "uwebsockets-express": "^1.3.4"
   }
 }

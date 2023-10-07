@@ -1,5 +1,5 @@
-FROM node:alpine
-RUN apk update && apk add git
+FROM node:16.20.2-bullseye
+RUN apt-get -y update && apt-get -y install git
 
 WORKDIR /usr/qxjourney-server
 COPY . .
