@@ -8,7 +8,7 @@ const transport = new uWebSocketsTransport({});
 const app = expressify(transport.app);
 
 app.use(express.json());
-app.use('/', express.static('static'));
+app.use('/game', express.static('static'));
 
 // Not found path
 app.use('*', (req, res) => {
