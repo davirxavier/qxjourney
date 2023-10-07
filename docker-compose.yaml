@@ -6,8 +6,8 @@ services:
     pull_policy: build
     restart: unless-stopped
     build:
-#      args:
-#        BASE_PATH: ${BASE_PATH}
+      args:
+        BASE_PATH: ${BASE_PATH}
       context: .
       dockerfile: Dockerfile
     environment:
