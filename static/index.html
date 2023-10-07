@@ -136,7 +136,7 @@
 
             if (!isInit) {
                 isInit = true;
-                const url = 'ws://' + (window.location + "").replace('http://', '').replace('https://').replace('/', '');
+                const url = 'ws://' + window.location.host + (window.location.pathname.endsWith('/') ? window.location.pathname.substring(0, window.location.pathname.length-1) : window.location.pathname);
                 console.log(url)
                 ColyseusUtils.init(url, name, "teste")
                     .then(() => {
