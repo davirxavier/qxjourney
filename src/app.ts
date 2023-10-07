@@ -11,7 +11,7 @@ app.use(express.json());
 app.use('/', express.static('static'));
 
 // Not found path
-app.get('*', (req, res) => {
+app.use('*', (req, res) => {
   console.log(`Not found: ${req.url}`);
   res.status(404);
   res.sendFile(__dirname + '/pages/not_found.html');
