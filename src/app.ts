@@ -5,6 +5,7 @@ import {GameRoom} from "./game.room";
 import {setupCustomAppWrapper} from "./transport/custom-app-wrapper";
 import {processBasePathUrl} from "./utils";
 import {WebSocketTransport} from "@colyseus/ws-transport";
+import {MongooseDriver} from "@colyseus/mongoose-driver";
 
 setupCustomAppWrapper();
 
@@ -26,7 +27,8 @@ app.use('*', (req, res) => {
 
 const gameServer = new Server({
   transport,
-  presence: new RedisPresence({host: process.env.REDIS_HOST})
+  presence: new LocalPresence(),
+  driver: new MongooseDriver()
 });
 
 gameServer.define("lobby", LobbyRoom);
