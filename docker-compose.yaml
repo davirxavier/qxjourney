@@ -5,8 +5,6 @@ services:
     image: qxjourney-server
     pull_policy: build
     restart: unless-stopped
-    depends_on:
-      - qxj-redis
     build:
       args:
         BASE_PATH: ${BASE_PATH}
@@ -15,8 +13,5 @@ services:
     environment:
       - NODE_SERVER_PORT=5345
       - BASE_PATH=${BASE_PATH}
-      - REDIS_HOST=qxj-redis
     ports:
       - "${EXTERNAL_SERVER_PORT}:5345"
-  qxj-redis:
-    image: redis

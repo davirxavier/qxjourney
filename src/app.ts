@@ -1,16 +1,16 @@
 import express from 'express';
-import {createServer} from 'http';
-import {LobbyRoom, LocalPresence, RedisPresence, Server} from "colyseus";
+import expressify from "uwebsockets-express"
+import {LobbyRoom, Server} from "colyseus";
 import {GameRoom} from "./game.room";
 import {setupCustomAppWrapper} from "./transport/custom-app-wrapper";
 import {processBasePathUrl} from "./utils";
-import {WebSocketTransport} from "@colyseus/ws-transport";
+import {CustomTransport} from "./transport/custom-transport";
 
 setupCustomAppWrapper();
 
-const app = express();
 const basePath = processBasePathUrl(process.env.BASE_PATH);
-const transport = new WebSocketTransport({server: createServer(app)});
+const transport = new CustomTransport({basePath: basePath + '/ws'});
+const app = expressify(transport.app);
 
 console.log('Setting up with base path: ' + basePath);
 
@@ -24,10 +24,7 @@ app.use('*', (req, res) => {
   res.sendFile(__dirname + '/pages/not_found.html');
 });
 
-const gameServer = new Server({
-  transport,
-  presence: new RedisPresence({host: process.env.REDIS_HOST})
-});
+const gameServer = new Server({transport});
 
 gameServer.define("lobby", LobbyRoom);
 
