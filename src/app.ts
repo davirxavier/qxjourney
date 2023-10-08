@@ -2,17 +2,24 @@ import express from 'express';
 import expressify from "uwebsockets-express"
 import {LobbyRoom, LocalPresence, Server} from "colyseus";
 import {GameRoom} from "./game.room";
-import {uWebSocketsTransport} from "@colyseus/uwebsockets-transport";
+import {CustomTransport} from "./transport/custom-transport";
+import {setupCustomAppWrapper} from "./transport/custom-app-wrapper";
+import {processBasePathUrl} from "./utils";
 
-const transport = new uWebSocketsTransport({});
+setupCustomAppWrapper();
+
+const basePath = processBasePathUrl(process.env.BASE_PATH);
+const transport = new CustomTransport({basePath: basePath + '/ws'});
 const app = expressify(transport.app);
 
+console.log('Setting up with base path: ' + basePath);
+
 app.use(express.json());
-app.use('/game', express.static('static'));
+app.use(basePath + '/game', express.static('static'));
 
 // Not found path
 app.use('*', (req, res) => {
-  console.log(`Not found: ${req.url}`);
+  console.log(`Not found: ${req.baseUrl}`);
   res.status(404);
   res.sendFile(__dirname + '/pages/not_found.html');
 });
