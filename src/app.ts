@@ -1,6 +1,6 @@
 import express from 'express';
 import {createServer} from 'http';
-import {LobbyRoom, LocalPresence, Server} from "colyseus";
+import {LobbyRoom, LocalPresence, RedisPresence, Server} from "colyseus";
 import {GameRoom} from "./game.room";
 import {setupCustomAppWrapper} from "./transport/custom-app-wrapper";
 import {processBasePathUrl} from "./utils";
@@ -26,7 +26,7 @@ app.use('*', (req, res) => {
 
 const gameServer = new Server({
   transport,
-  presence: new LocalPresence()
+  presence: new RedisPresence({host: process.env.REDIS_HOST})
 });
 
 gameServer.define("lobby", LobbyRoom);
