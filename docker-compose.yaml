@@ -5,6 +5,8 @@ services:
     image: qxjourney-server
     pull_policy: build
     restart: unless-stopped
+    depends_on:
+      - qxj-redis
     build:
       args:
         BASE_PATH: ${BASE_PATH}
