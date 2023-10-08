@@ -1,12 +1,6 @@
-import {LobbyRoom, Room} from "colyseus";
+import {LobbyRoom} from "colyseus";
 
-export class NoSeatReservationRoom<T> extends Room<T> {
-    hasReservedSeat(sessionId: string): boolean {
-        return true;
-    }
-}
-
-export class NoSeatReservationLobbyRoom extends LobbyRoom {
+export class CustomLobbyRoom extends LobbyRoom{
     hasReservedSeat(sessionId: string): boolean {
         return true;
     }

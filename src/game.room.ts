@@ -1,7 +1,6 @@
 import {MapSchema, Schema, type} from "@colyseus/schema";
 import {Client, Room, updateLobby} from "colyseus";
 import {Events} from "./events";
-import {NoSeatReservationRoom} from "./transport/custom-lobby-room";
 
 export class Player extends Schema {
 
@@ -50,7 +49,7 @@ export class GameState extends Schema {
 
 }
 
-export class GameRoom extends NoSeatReservationRoom<GameState> {
+export class GameRoom extends Room<GameState> {
 
     onCreate(options: any): void | Promise<any> {
         this.setState(new GameState());

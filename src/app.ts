@@ -5,7 +5,7 @@ import {GameRoom} from "./game.room";
 import {CustomTransport} from "./transport/custom-transport";
 import {setupCustomAppWrapper} from "./transport/custom-app-wrapper";
 import {processBasePathUrl} from "./utils";
-import {NoSeatReservationLobbyRoom} from "./transport/custom-lobby-room";
+import {CustomLobbyRoom} from "./transport/custom-lobby-room";
 
 setupCustomAppWrapper();
 
@@ -30,7 +30,7 @@ const gameServer = new Server({
   presence: new LocalPresence()
 });
 
-gameServer.define("lobby", NoSeatReservationLobbyRoom);
+gameServer.define("lobby", CustomLobbyRoom);
 
 gameServer.define('main_room', GameRoom)
     .enableRealtimeListing();
