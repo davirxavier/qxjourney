@@ -18,7 +18,6 @@ type RawWebSocketClient = uWebSockets.WebSocket & {
  */
 export class CustomTransport extends uWebSocketsTransport {
 
-    // Code copied from the uWebSocketsTransport in the colyseus lib
     // @ts-ignore
     constructor(options?: TransportOptions & {basePath?: string}, appOptions?: uWebSockets.AppOptions) {
         // tslint:disable-next-line:no-duplicate-super
@@ -54,8 +53,6 @@ export class CustomTransport extends uWebSocketsTransport {
                 // get all headers
                 const headers: {[id: string]: string} = {};
                 req.forEach((key, value) => headers[key] = value);
-                console.log("WS upgrade headers: ");
-                console.log(headers);
 
                 /* This immediately calls open handler, you must not use res after this call */
                 /* Spell these correctly */
@@ -78,8 +75,6 @@ export class CustomTransport extends uWebSocketsTransport {
             },
 
             open: async (ws: RawWebSocketClient) => {
-                console.log("WS open headers: ");
-                console.log(ws.headers);
 
                 // ws.pingCount = 0;
                 await this.onConnection(ws);
@@ -90,9 +85,6 @@ export class CustomTransport extends uWebSocketsTransport {
             // },
 
             close: (ws: RawWebSocketClient, code: number, message: ArrayBuffer) => {
-                console.log("WS close headers: ");
-                console.log(ws.headers);
-
                 // remove from client list
                 spliceOne(this.clients, this.clients.indexOf(ws));
 
@@ -106,9 +98,6 @@ export class CustomTransport extends uWebSocketsTransport {
             },
 
             message: (ws: RawWebSocketClient, message: ArrayBuffer, isBinary: boolean) => {
-                console.log("WS message headers: ");
-                console.log(ws.headers);
-
                 // emit 'close' on wrapper
                 this.clientWrappers.get(ws)?.emit('message', Buffer.from(message.slice(0)));
             },

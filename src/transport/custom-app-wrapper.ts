@@ -124,7 +124,6 @@ export function setupCustomAppWrapper() {
                         uri = uri.startsWith('/') ? uri.substring(1) : uri;
                         args[0] = this.basePath.endsWith('/') ? `${this.basePath}${uri}` : `${this.basePath}/${uri}`;
                     }
-                    console.log(args[0])
 
                     return fn.call(this.app, ...args);
                 } else {
