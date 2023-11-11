@@ -8128,7 +8128,7 @@ Game_Player.prototype.setCustomChar = function (name, index) {
 }
 
 Game_Player.prototype.refresh = function() {
-    const actor = $gameParty.leader();
+    // const actor = $gameParty.leader();
     // const characterName = actor ? actor.characterName() : "";
     // const characterIndex = actor ? actor.characterIndex() : 0;
     this.setImage(this._customCharName, this._customCharIndex);

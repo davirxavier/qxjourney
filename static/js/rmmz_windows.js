@@ -5945,6 +5945,12 @@ Window_PartyCommand.prototype.setup = function() {
     this.open();
 };
 
+Window_PartyCommand.prototype.open = function() {
+};
+
+Window_PartyCommand.prototype.activate = function() {
+};
+
 //-----------------------------------------------------------------------------
 // Window_ActorCommand
 //
@@ -5956,6 +5962,12 @@ function Window_ActorCommand() {
 
 Window_ActorCommand.prototype = Object.create(Window_Command.prototype);
 Window_ActorCommand.prototype.constructor = Window_ActorCommand;
+
+Window_ActorCommand.prototype.open = function() {
+};
+
+Window_ActorCommand.prototype.activate = function() {
+};
 
 Window_ActorCommand.prototype.initialize = function(rect) {
     Window_Command.prototype.initialize.call(this, rect);
@@ -6165,6 +6177,12 @@ Window_BattleStatus.prototype.basicGaugesY = function(rect) {
     return bottom - this.gaugeLineHeight() * numGauges;
 };
 
+Window_BattleStatus.prototype.open = function() {
+};
+
+Window_BattleStatus.prototype.activate = function() {
+};
+
 //-----------------------------------------------------------------------------
 // Window_BattleActor
 //
@@ -6214,6 +6232,12 @@ Window_BattleActor.prototype.processTouch = function() {
             $gameTemp.clearTouchState();
         }
     }
+};
+
+Window_BattleActor.prototype.open = function() {
+};
+
+Window_BattleActor.prototype.activate = function() {
 };
 
 //-----------------------------------------------------------------------------
