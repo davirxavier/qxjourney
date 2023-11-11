@@ -738,7 +738,7 @@ Sprite_Actor.prototype.moveToStartPosition = function() {
 };
 
 Sprite_Actor.prototype.setActorHome = function(index) {
-    this.setHome(600 + index * 32, 280 + index * 48);
+    this.setHome(500 + index * 12, 250 + (index % 5) * 48);
 };
 
 Sprite_Actor.prototype.update = function() {

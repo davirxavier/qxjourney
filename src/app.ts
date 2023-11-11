@@ -2,20 +2,13 @@ import express from 'express';
 import expressify from "uwebsockets-express"
 import {LobbyRoom, Server} from "colyseus";
 import {GameRoom} from "./game.room";
-import {setupCustomAppWrapper} from "./transport/custom-app-wrapper";
-import {processBasePathUrl} from "./utils";
-import {CustomTransport} from "./transport/custom-transport";
+import {uWebSocketsTransport} from "@colyseus/uwebsockets-transport";
 
-setupCustomAppWrapper();
-
-const basePath = processBasePathUrl(process.env.BASE_PATH);
-const transport = new CustomTransport({basePath: basePath + '/ws'});
+const transport = new uWebSocketsTransport();
 const app = expressify(transport.app);
 
-console.log('Setting up with base path: ' + basePath);
-
 app.use(express.json());
-app.use(basePath + '/game', express.static('static'));
+app.use('/game', express.static('static'));
 
 // Not found path
 app.use('*', (req, res) => {

@@ -16,6 +16,9 @@ export class Player extends Schema {
     @type("number")
     y = 0;
 
+    @type("number")
+    playerSprite = -1;
+
     @type("boolean")
     isRunning = false;
 
@@ -28,9 +31,13 @@ export class GameState extends Schema {
 
     something = "This attribute won't be sent to the client-side";
 
-    createPlayer(sessionId: string, name: string) {
+    createPlayer(sessionId: string, config: string) {
         const p = new Player();
-        p.name = name;
+
+        const split = config.split(';;;');
+        p.name = split[0];
+        p.playerSprite = split[1] ? parseInt(split[1], 10) || this.players.size : this.players.size;
+
         this.players.set(sessionId, p);
         return {...p, sessionId};
     }

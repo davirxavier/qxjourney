@@ -5,7 +5,7 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <base href="/">
+    <base href="/game/">
     <title>QxJourney</title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
 
@@ -76,6 +76,16 @@
         var colyseusPlayerName = undefined;
         var isInit = false;
 
+        document.getElementById("nameField").onkeydown = (event) => {
+            checkEnter(event, load);
+        };
+
+        function checkEnter(event, fn) {
+            if (event.key === "Enter" && fn) {
+                fn();
+            }
+        }
+
         function loadFrame() {
             document.getElementById('nameContainer').style = 'display: none !important;';
             document.getElementById('roomListing').style = 'display: none !important;';
@@ -137,8 +147,8 @@
             if (!isInit) {
                 isInit = true;
                 const url = (window.location.protocol.startsWith('https') ? 'wss://' : 'ws://') + window.location.host +
-                    (window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/game'))) + '/ws';
-                console.log(url)
+                    (window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/game')));
+                console.log('Connecting to: '+ url);
                 ColyseusUtils.init(url, name, "teste")
                     .then(() => {
                         document.getElementById('nameContainer').style = 'display: none !important;';

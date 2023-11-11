@@ -6,12 +6,9 @@ services:
     pull_policy: build
     restart: unless-stopped
     build:
-      args:
-        BASE_PATH: ${BASE_PATH}
       context: .
       dockerfile: Dockerfile
     environment:
       - NODE_SERVER_PORT=5345
-      - BASE_PATH=${BASE_PATH}
     ports:
       - "${EXTERNAL_SERVER_PORT}:5345"

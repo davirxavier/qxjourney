@@ -5446,7 +5446,7 @@ Game_Party.prototype.allBattleMembers = function() {
 };
 
 Game_Party.prototype.maxBattleMembers = function() {
-    return 4;
+    return ColyseusUtils.getPlayerCount();
 };
 
 Game_Party.prototype.leader = function() {
@@ -8103,6 +8103,10 @@ Game_Player.prototype.initMembers = function() {
     this._fadeType = 0;
     this._followers = new Game_Followers();
     this._encounterCount = 0;
+
+    const currPlayer = ColyseusUtils.getCurrentPlayer();
+    this._customCharName = "Actor1";
+    this._customCharIndex = currPlayer ? currPlayer.playerSprite : 0;
 };
 
 Game_Player.prototype.clearTransferInfo = function() {
@@ -8117,11 +8121,17 @@ Game_Player.prototype.followers = function() {
     return this._followers;
 };
 
+Game_Player.prototype.setCustomChar = function (name, index) {
+    this._customCharName = name;
+    this._customCharIndex = index;
+    this.refresh();
+}
+
 Game_Player.prototype.refresh = function() {
     const actor = $gameParty.leader();
-    const characterName = actor ? actor.characterName() : "";
-    const characterIndex = actor ? actor.characterIndex() : 0;
-    this.setImage(characterName, characterIndex);
+    // const characterName = actor ? actor.characterName() : "";
+    // const characterIndex = actor ? actor.characterIndex() : 0;
+    this.setImage(this._customCharName, this._customCharIndex);
     this._followers.refresh();
 };
 
@@ -8738,12 +8748,20 @@ Game_Follower.prototype.initialize = function(memberIndex) {
     this._isRunning = false;
     this.setTransparent(false);
     this.setThrough(true);
+    this._customCharName = "";
+    this._customCharIndex = 0;
 };
 
+Game_Follower.prototype.setCustomChar = function(name, index) {
+    this._customCharName = name;
+    this._customCharIndex = index;
+    this.refresh();
+}
+
 Game_Follower.prototype.refresh = function() {
-    const characterName = this.isVisible() ? this.actor().characterName() : "";
-    const characterIndex = this.isVisible() ? this.actor().characterIndex() : 0;
-    this.setImage(characterName, characterIndex);
+    // const characterName = this.isVisible() ? this.actor().characterName() : "";
+    // const characterIndex = this.isVisible() ? this.actor().characterIndex() : 0;
+    this.setImage(this._customCharName, this._customCharIndex);
 };
 
 Game_Follower.prototype.actor = function() {
@@ -8824,6 +8842,7 @@ Game_Followers.prototype.setup = function() {
         const newFollower = new Game_Follower(i+1);
         newFollower.setTransparent(true);
         newFollower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
+        newFollower.setCustomChar("", 0);
         this._data.push(newFollower);
     }
 
@@ -8849,6 +8868,7 @@ Game_Followers.prototype.setup = function() {
         if (follower) {
             follower.setTransparent(true);
             follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
+            follower.setCustomChar("", 0);
             this._playerMap[sessionId] = undefined;
             delete this._playerMap[sessionId];
         }
@@ -8871,7 +8891,7 @@ Game_Followers.prototype.onPlayerJoined = function(p) {
     follower._isRunning = p.isRunning;
     follower._externalPlayer = p;
     follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
-    follower.refresh();
+    follower.setCustomChar("Actor1", p.playerSprite);
     this._playerMap[p.sessionId] = follower;
 };
 

@@ -3,6 +3,7 @@ var ColyseusUtils = {
     colyseusClient: undefined,
     colyseusRoom: undefined,
     roomsAvailable: [],
+    playerCount: 0,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
 
     init: async (url) => {
@@ -87,6 +88,18 @@ var ColyseusUtils = {
     getPlayer: (sessId) => {
         if (ColyseusUtils.colyseusRoom.state && ColyseusUtils.colyseusRoom.state.players) {
             return ColyseusUtils.getPlayers().find(p => p.sessionId === sessId);
+        } else {
+            return undefined;
+        }
+    },
+
+    getPlayerCount: () => {
+        return ColyseusUtils.getPlayers().length + 1;
+    },
+
+    getCurrentPlayer: () => {
+        if (ColyseusUtils.colyseusRoom.state && ColyseusUtils.colyseusRoom.state.players) {
+            return ColyseusUtils.colyseusRoom.state.players.get(ColyseusUtils.colyseusRoom.sessionId);
         } else {
             return undefined;
         }
