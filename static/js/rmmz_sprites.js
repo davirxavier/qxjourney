@@ -492,10 +492,11 @@ Sprite_Battler.prototype.update = function() {
             SceneManager._scene._ultraHudContainer &&
             SceneManager._scene._ultraHudContainer._mainHUD
         ) {
-            let hud = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("nome jogador " + this._battler.index());
+            const i = this._battler.index();
+            let hud = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("jogador" + (i === 0 ? 49 : i-1));
             if (hud) {
-                hud.x = this._homeX + 14;
-                hud.y = this._homeY - 16;
+                hud.x = this._homeX + 2;
+                hud.y = this._homeY - 82;
             }
         }
     } else {
@@ -750,7 +751,7 @@ Sprite_Actor.prototype.moveToStartPosition = function() {
 };
 
 Sprite_Actor.prototype.setActorHome = function(index) {
-    this.setHome(478 + index * 12, 200 + (index % 5) * 70);
+    this.setHome(478 + index * 12, 200 + (index % 5) * 80);
 };
 
 Sprite_Actor.prototype.update = function() {

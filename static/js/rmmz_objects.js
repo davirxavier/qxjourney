@@ -8107,6 +8107,8 @@ Game_Player.prototype.initMembers = function() {
     const currPlayer = ColyseusUtils.getCurrentPlayer();
     this._customCharName = "Actor1";
     this._customCharIndex = currPlayer ? currPlayer.playerSprite : 0;
+    $gameVariables.setValue(70, currPlayer.name);
+    $gameSwitches.setValue(70, true);
 };
 
 Game_Player.prototype.clearTransferInfo = function() {
