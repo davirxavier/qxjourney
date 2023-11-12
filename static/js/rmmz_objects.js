@@ -5446,7 +5446,7 @@ Game_Party.prototype.allBattleMembers = function() {
 };
 
 Game_Party.prototype.maxBattleMembers = function() {
-    return ColyseusUtils.getPlayerCount();
+    return ColyseusUtils.debugMode ? 25 : ColyseusUtils.getPlayerCount();
 };
 
 Game_Party.prototype.leader = function() {
@@ -8109,6 +8109,12 @@ Game_Player.prototype.initMembers = function() {
     this._customCharIndex = currPlayer ? currPlayer.playerSprite : 0;
     $gameVariables.setValue(70, currPlayer.name);
     $gameSwitches.setValue(70, true);
+
+    if (ColyseusUtils.debugMode) {
+        for (let i = 0; i < 25; i++) {
+            $gameSwitches.setValue(21+i, true);
+        }
+    }
 };
 
 Game_Player.prototype.clearTransferInfo = function() {

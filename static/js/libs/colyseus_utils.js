@@ -4,11 +4,14 @@ var ColyseusUtils = {
     colyseusRoom: undefined,
     roomsAvailable: [],
     playerCount: 0,
+    abilityRechargeSeconds: 7,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
+    debugMode: false,
 
     eventTypes: {
         ATTACK_EVENT: 0,
         EVADE_EVENT: 1,
+        SPECIAL_EVENT: 2,
     },
 
     init: async (url) => {

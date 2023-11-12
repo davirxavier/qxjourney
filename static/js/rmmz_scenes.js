@@ -2964,7 +2964,7 @@ Scene_Battle.prototype.start = function() {
     this.startFadeIn(this.fadeSpeed(), false);
 };
 
-Scene_Battle.prototype.update = function() {
+Scene_Battle.prototype.update = function(dt) {
     const active = this.isActive();
     $gameTimer.update(active);
     $gameScreen.update();
@@ -3111,8 +3111,9 @@ Scene_Battle.prototype.needsInputWindowChange = function() {
 
 Scene_Battle.prototype.updateCancelButton = function() {
     if (this._cancelButton) {
-        this._cancelButton.visible =
-            this.isAnyInputWindowActive() && !this._partyCommandWindow.active;
+        this._cancelButton.visible = false;
+        // this._cancelButton.visible =
+        //     this.isAnyInputWindowActive() && !this._partyCommandWindow.active;
     }
 };
 
@@ -3142,7 +3143,104 @@ Scene_Battle.prototype.createAllWindows = function() {
     this.createActorWindow();
     this.createEnemyWindow();
     Scene_Message.prototype.createAllWindows.call(this);
+
+    this.createCustomButtons();
 };
+
+Scene_Battle.prototype.createCustomButtons = function () {
+    this._attackButton = new Sprite_Action_Button("attack");
+    this._attackButton.x = (Graphics.boxWidth / 3) + 8 - this._attackButton.width*2;
+    this._attackButton.y = Graphics.boxHeight - this._attackButton.height - 10;
+
+    this.addWindow(this._attackButton);
+
+    this._guardButton = new Sprite_Action_Button("guard");
+    this._guardButton.x = (Graphics.boxWidth / 3 * 2) + 8 - this._guardButton.width*2;
+    this._guardButton.y = Graphics.boxHeight - this._guardButton.height - 10;
+
+    this.addWindow(this._guardButton);
+
+    this._specialButton = new Sprite_Action_Button("special");
+    this._specialButton.x = Graphics.boxWidth + 8 - this._specialButton.width*2;
+    this._specialButton.y = Graphics.boxHeight - this._specialButton.height - 10;
+
+    this.addWindow(this._specialButton);
+
+    this._attackButton.setClickHandler(this.handleActionButton.bind(this, 'a'));
+    this._guardButton.setClickHandler(this.handleActionButton.bind(this, 'g'));
+    this._specialButton.setClickHandler(this.handleActionButton.bind(this, 's'));
+}
+
+const actionsByType = {
+    a: {
+        event: ColyseusUtils.eventTypes.ATTACK_EVENT,
+        setAction: (action) => action.setAttack(),
+    },
+    g: {
+        event: ColyseusUtils.eventTypes.EVADE_EVENT,
+        setAction: (action) => action.setGuard(),
+    },
+    s: {
+        event: ColyseusUtils.eventTypes.SPECIAL_EVENT,
+        setAction: (action) => action.setSkill(45),
+    },
+};
+
+Scene_Battle.prototype.handleActionButton = function (type) {
+    if (!this._isRechargingButtons) {
+        let value = 100;
+
+        this.setRechargingActions(true, type);
+        this._attackButton.setValue(value);
+        this._guardButton.setValue(value);
+        this._specialButton.setValue(value);
+
+        const actionData = actionsByType[type];
+        ColyseusUtils.broadcastEvent(actionData.event, {});
+        BattleManager._currentActor = $gameParty.battleMembers()[0];
+
+        const action = new Game_Action(BattleManager._currentActor);
+        actionData.setAction(action);
+
+        BattleManager._currentActor._actions = [];
+        BattleManager._currentActor.setAction(0, action);
+        BattleManager._currentActor.setActionState("waiting");
+
+        BattleManager._subject = BattleManager._currentActor;
+        BattleManager.startAction();
+        BattleManager._currentActor._actions = [];
+
+        const func = () => {
+            setTimeout(() => {
+                value -= (100 * 0.05) / ColyseusUtils.abilityRechargeSeconds / (type === 's' ? 3 : 1);
+                this._attackButton.setValue(value);
+                this._guardButton.setValue(value);
+                this._specialButton.setValue(value);
+
+                if (value <= 0) {
+                    this.setRechargingActions(false, type);
+                    this._attackButton.setValue(value);
+                    this._guardButton.setValue(value);
+                    this._specialButton.setValue(value);
+                } else {
+                    func();
+                }
+            }, 50);
+        };
+        func();
+    }
+}
+
+const switchByButton = {
+    a: 3,
+    g: 4,
+    s: 5,
+};
+
+Scene_Battle.prototype.setRechargingActions = function (val, type) {
+    this._isRechargingButtons = val;
+    Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], val));
+}
 
 Scene_Battle.prototype.createLogWindow = function() {
     const rect = this.logWindowRect();
