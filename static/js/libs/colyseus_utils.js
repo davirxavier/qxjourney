@@ -6,6 +6,11 @@ var ColyseusUtils = {
     playerCount: 0,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
 
+    eventTypes: {
+        ATTACK_EVENT: 0,
+        EVADE_EVENT: 1,
+    },
+
     init: async (url) => {
         ColyseusUtils.colyseusClient = new Colyseus.Client(url);
 
@@ -105,14 +110,25 @@ var ColyseusUtils = {
         }
     },
 
+    broadcastEvent: (type, data) => {
+        ColyseusUtils.colyseusRoom.send('player_event', {type, data, sender: ColyseusUtils.colyseusRoom.sessionId});
+    },
     onStateChange: (callback) => {
         ColyseusUtils.colyseusRoom.onStateChange(callback);
     },
-
     onPlayerJoined: (callback) => {
         ColyseusUtils.colyseusRoom.onMessage('joined', callback);
     },
     onPlayerLeft: (callback) => {
         ColyseusUtils.colyseusRoom.onMessage('left', callback);
-    }
+    },
+    onPlayerEvent: (callback) => {
+      if (callback) {
+          ColyseusUtils.colyseusRoom.onMessage('player_event', (event) => {
+              if (event && event.sender && event.sender !== ColyseusUtils.colyseusRoom.sessionId) {
+                  callback(event);
+              }
+          });
+      }
+    },
 };

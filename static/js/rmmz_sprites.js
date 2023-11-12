@@ -486,6 +486,18 @@ Sprite_Battler.prototype.update = function() {
         this.updateDamagePopup();
         this.updateSelectionEffect();
         this.updateVisibility();
+
+        if (SceneManager._scene instanceof Scene_Battle &&
+            SceneManager._scene &&
+            SceneManager._scene._ultraHudContainer &&
+            SceneManager._scene._ultraHudContainer._mainHUD
+        ) {
+            let hud = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("nome jogador " + this._battler.index());
+            if (hud) {
+                hud.x = this._homeX + 14;
+                hud.y = this._homeY - 16;
+            }
+        }
     } else {
         this.bitmap = null;
     }
@@ -738,7 +750,7 @@ Sprite_Actor.prototype.moveToStartPosition = function() {
 };
 
 Sprite_Actor.prototype.setActorHome = function(index) {
-    this.setHome(478 + index * 12, 250 + (index % 5) * 48);
+    this.setHome(478 + index * 12, 200 + (index % 5) * 70);
 };
 
 Sprite_Actor.prototype.update = function() {

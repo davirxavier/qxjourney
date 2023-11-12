@@ -65,6 +65,8 @@ export class GameRoom extends Room<GameState> {
             this.state.movePlayer(client.sessionId, message);
         });
 
+        this.onMessage('player_event', (eventClient, message) => this.broadcast('player_event', message));
+
         this.maxClients = parseInt(options.maxPlayers, 10) || 99;
         this.setMetadata({
             roomName: options.roomName

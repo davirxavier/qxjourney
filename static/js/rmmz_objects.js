@@ -8830,6 +8830,7 @@ Game_Followers.prototype.initialize = function() {
     this._gathering = false;
     this._data = [];
     this._playerMap = {};
+    this._hudMap = {};
     this._startingPos = {x: 0, y: 0};
     this._startingPosInit = false;
     this.setup();
@@ -8869,8 +8870,15 @@ Game_Followers.prototype.setup = function() {
             follower.setTransparent(true);
             follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
             follower.setCustomChar("", 0);
+
+            const followerIndex = this._data.findIndex(f => f === follower);
+            $gameSwitches.setValue(21 + followerIndex, false);
+
             this._playerMap[sessionId] = undefined;
             delete this._playerMap[sessionId];
+
+            this._hudMap[followerIndex] = undefined;
+            delete this._hudMap[followerIndex];
         }
     });
 };
@@ -8886,12 +8894,17 @@ Game_Followers.prototype.getStartingPos = function () {
 };
 
 Game_Followers.prototype.onPlayerJoined = function(p) {
-    const follower = this._data.find(f => f.isTransparent());
+    const followerIndex = this._data.findIndex(f => f.isTransparent())
+    const follower = this._data[followerIndex];
     follower.setTransparent(false);
     follower._isRunning = p.isRunning;
     follower._externalPlayer = p;
     follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
     follower.setCustomChar("Actor1", p.playerSprite);
+
+    $gameVariables.setValue(21 + followerIndex, p.name);
+    $gameSwitches.setValue(21 + followerIndex, true);
+
     this._playerMap[p.sessionId] = follower;
 };
 
@@ -8942,11 +8955,24 @@ Game_Followers.prototype.update = function() {
             this._gathering = false;
         }
     }
-    this.getActive().forEach(f => f.update());
+    this.getActive().forEach((f, i) => {
+        f.update();
+
+        if (SceneManager._scene instanceof Scene_Map) {
+            let hud = this._hudMap[i];
+            if (hud) {
+                hud.x = f.screenX();
+                hud.y = f.screenY() - 54;
+            } else {
+                hud = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("nome jogador " + i);
+                this._hudMap[i] = hud;
+            }
+        }
+    });
 };
 
 Game_Followers.prototype.updateMove = function() {
-    this.getActive().forEach(gf => {
+    this.getActive().forEach((gf, i) => {
         const p = ColyseusUtils.getPlayer(gf._externalPlayer.sessionId);
         if (p) {
             gf._targetX = p.x !== gf._x ? p.x : undefined;
