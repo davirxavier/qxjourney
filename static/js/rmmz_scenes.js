@@ -3209,6 +3209,18 @@ Scene_Battle.prototype.createCustomButtons = function () {
 
     this.addWindow(this._specialButton);
 
+    this._answerButtons = [];
+    const pos = [58, 270, 450, 630];
+    for (let i = 0; i < 4; i++) {
+        const btn = new Sprite_Action_Button("special");
+        btn.shouldUpdateOpacity(false);
+        btn.x = pos[i];
+        btn.y = 502;
+        btn.opacity = 0;
+        this.addWindow(btn);
+        this._answerButtons.push(btn);
+    }
+
     this._attackButton.setClickHandler(this.handleActionButton.bind(this, 'a'));
     this._guardButton.setClickHandler(this.handleActionButton.bind(this, 'g'));
     this._specialButton.setClickHandler(this.handleActionButton.bind(this, 'a', $gameParty.battleMembers()[0].skills()[0].id));
@@ -3217,17 +3229,16 @@ Scene_Battle.prototype.createCustomButtons = function () {
 Scene_Battle.prototype.handleActionButton = function (type, skillId) {
     if (!this._isRechargingButtons) {
         let value = 100;
+        const timeout = 50;
 
         this.setRechargingActions(true, type);
         this._attackButton.setValue(value);
         this._guardButton.setValue(value);
         this._specialButton.setValue(value);
 
-        this.doAction($gameParty.battleMembers()[0], type, skillId);
-
         const func = () => {
             setTimeout(() => {
-                value -= (100 * 0.05) / ColyseusUtils.abilityRechargeSeconds / (type === 's' ? 3 : 1);
+                value -= (100 * (timeout/1000)) / ColyseusUtils.abilityRechargeSeconds / (type === 's' ? 3 : 1);
                 this._attackButton.setValue(value);
                 this._guardButton.setValue(value);
                 this._specialButton.setValue(value);
@@ -3240,9 +3251,66 @@ Scene_Battle.prototype.handleActionButton = function (type, skillId) {
                 } else {
                     func();
                 }
-            }, 50);
+            }, timeout);
         };
         func();
+
+        $gameSwitches.setValue(521, true);
+
+        let mathOperation;
+        if (type === 'a' && skillId) {
+            mathOperation = MathGenerator.gen3();
+        } else if (type === 'a') {
+            mathOperation = MathGenerator.gen1();
+        } else {
+            mathOperation = MathGenerator.gen2();
+        }
+
+        $gameVariables.setValue(521, mathOperation.operands.join(' '));
+        $gameVariables.setValue(522, mathOperation.alternatives[0]);
+        $gameVariables.setValue(523, mathOperation.alternatives[1]);
+        $gameVariables.setValue(524, mathOperation.alternatives[2]);
+        $gameVariables.setValue(525, mathOperation.alternatives[3]);
+
+        this._attackButton.visible = false;
+        this._guardButton.visible = false;
+        this._specialButton.visible = false;
+
+        let valueQuestion = 115;
+        let answeredCorrectly = false;
+        let answered = false;
+
+        const btns = [this._attackButton, this._guardButton, this._specialButton];
+        let interval = setInterval(() => {
+            valueQuestion -= (100 * (timeout/1000)) / ColyseusUtils.abilityRechargeSeconds;
+            $gameVariables.setValue(530, valueQuestion);
+
+            if (valueQuestion <= 0 || answered) {
+                $gameSwitches.setValue(521, false);
+                $gameVariables.setValue(530, 0);
+
+                btns.forEach(b => b.visible = true);
+
+                if (answeredCorrectly) {
+                    this.doAction($gameParty.battleMembers()[0], type, skillId);
+                }
+                clearInterval(interval);
+            }
+        }, timeout);
+
+
+        setTimeout(() => {
+            for (let i = 0; i < 4; i++) {
+                this._answerButtons[i].setClickHandler(() => {
+                    answeredCorrectly = i === mathOperation.correctAlternative;
+                    answered = true;
+
+                    for (let j = 0; j < 4; j++) {
+                        this._answerButtons[j].setClickHandler(null);
+                    }
+                });
+            }
+        }, 200)
     }
 }
 

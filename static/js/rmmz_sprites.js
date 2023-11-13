@@ -220,8 +220,13 @@ Sprite_Action_Button.prototype.initialize = function(buttonType) {
     this._buttonData = null;
     this._value = 0;
     this._rechargeFrameCache = null;
+    this._shouldUpdateOpacity = true;
     this.setupFrames();
 };
+
+Sprite_Action_Button.prototype.shouldUpdateOpacity = function (val) {
+    this._shouldUpdateOpacity = val;
+}
 
 Sprite_Action_Button.prototype.setValue = function (val) {
     this._value = val;
@@ -257,6 +262,7 @@ Sprite_Action_Button.prototype.buttonData = function() {
         attack: {x: 0, w: 1},
         guard: {x: 1, w: 1},
         special: {x: 2, w: 1},
+        empty: {x: 3, w: 1},
     };
     return buttonTable[this._buttonType];
 };
@@ -312,7 +318,9 @@ Sprite_Action_Button.prototype.rechargeFrame = function () {
 }
 
 Sprite_Action_Button.prototype.updateOpacity = function() {
-    this.opacity = this._pressed && this._value <= 0 ? 255 : 192;
+    if (this._shouldUpdateOpacity) {
+        this.opacity = this._pressed && this._value <= 0 ? 255 : 192;
+    }
 };
 
 Sprite_Action_Button.prototype.setColdFrame = function(x, y, width, height) {
