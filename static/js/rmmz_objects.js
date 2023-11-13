@@ -1593,7 +1593,8 @@ Game_Action.prototype.isMpRecover = function() {
 };
 
 Game_Action.prototype.isCertainHit = function() {
-    return this.item().hitType === Game_Action.HITTYPE_CERTAIN;
+    // return this.item().hitType === Game_Action.HITTYPE_CERTAIN;
+    return true;
 };
 
 Game_Action.prototype.isPhysical = function() {
@@ -5446,7 +5447,7 @@ Game_Party.prototype.allBattleMembers = function() {
 };
 
 Game_Party.prototype.maxBattleMembers = function() {
-    return ColyseusUtils.debugMode ? 25 : ColyseusUtils.getPlayerCount();
+    return ColyseusUtils.debugMode ? 25 : ColyseusUtils.inCombatPlayerCount();
 };
 
 Game_Party.prototype.leader = function() {
@@ -5909,6 +5910,17 @@ Game_Troop.prototype.setup = function(troopId) {
             const x = member.x;
             const y = member.y;
             const enemy = new Game_Enemy(enemyId, x, y);
+
+            if ($dataEnemies[member.enemyId].meta && $dataEnemies[member.enemyId].meta.AttackInterval) {
+                enemy._colyseusAttackInterval = parseInt($dataEnemies[member.enemyId].meta.AttackInterval, 10) || 10;
+            } else {
+                enemy._colyseusAttackInterval = 10;
+            }
+
+            if ($dataEnemies[member.enemyId].meta && $dataEnemies[member.enemyId].meta.SpecialAttack) {
+                enemy._colyseusSpecialAttack = parseInt($dataEnemies[member.enemyId].meta.SpecialAttack, 10) || 240;
+            }
+
             if (member.hidden) {
                 enemy.hide();
             }
@@ -8105,10 +8117,16 @@ Game_Player.prototype.initMembers = function() {
     this._encounterCount = 0;
 
     const currPlayer = ColyseusUtils.getCurrentPlayer();
-    this._customCharName = "Actor1";
-    this._customCharIndex = currPlayer ? currPlayer.playerSprite : 0;
+    this.setCustomChar("Actor1", currPlayer ? currPlayer.playerSprite : 0);
     $gameVariables.setValue(70, currPlayer.name);
     $gameSwitches.setValue(70, true);
+
+    for (let i = 0; i < 50; i++) {
+        $gameSwitches.setValue(71+i, false);
+        if (i === 49) {
+            $gameSwitches.setValue(71+i, true);
+        }
+    }
 
     if (ColyseusUtils.debugMode) {
         for (let i = 0; i < 25; i++) {
@@ -8847,7 +8865,7 @@ Game_Followers.prototype.initialize = function() {
 Game_Followers.prototype.setup = function() {
     this._data = [];
 
-    for (let i = 0; i < 99; i++) {
+    for (let i = 0; i < 50; i++) {
         const newFollower = new Game_Follower(i+1);
         newFollower.setTransparent(true);
         newFollower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
@@ -8968,7 +8986,7 @@ Game_Followers.prototype.update = function() {
 
         if (SceneManager._scene instanceof Scene_Map) {
             let hud = this._hudMap[i];
-            if (hud) {
+            if (hud && hud.transform) {
                 hud.x = f.screenX();
                 hud.y = f.screenY() - 54;
             } else {

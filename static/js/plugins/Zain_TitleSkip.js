@@ -14,7 +14,12 @@
     Scene_Boot.prototype.startNormalGame = function() {
         this.checkPlayerLocation();
         DataManager.setupNewGame();
-        SceneManager.goto(Scene_Map);
+
+        if (ColyseusUtils.hasCombat() && ColyseusUtils.isCurrentPlayerInCombat()) {
+            new Game_Interpreter().command301([0, ColyseusUtils.getCombatTroopId(), false, false]);
+        } else {
+            SceneManager.goto(Scene_Map);
+        }
     };
 
     Scene_Gameover.prototype.update = function() {

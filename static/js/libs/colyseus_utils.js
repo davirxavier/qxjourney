@@ -5,13 +5,22 @@ var ColyseusUtils = {
     roomsAvailable: [],
     playerCount: 0,
     abilityRechargeSeconds: 7,
+    attackDamage: 10,
+    specialDamage: 50,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
     debugMode: false,
 
     eventTypes: {
         ATTACK_EVENT: 0,
-        EVADE_EVENT: 1,
-        SPECIAL_EVENT: 2,
+        GUARD_EVENT: 1,
+        COMBAT_STARTED: 2,
+        COMBAT_ENDED: 'combat_ended',
+        PLAYER_MOVE: 'player_move',
+        JOIN_COMBAT: 'join_combat',
+        PLAYER_EVENT: 'player_event',
+        JOINED: 'joined',
+        LEFT: 'left',
+        ENEMY_ATTACK: 'enemy_attack'
     },
 
     init: async (url) => {
@@ -78,7 +87,7 @@ var ColyseusUtils = {
     },
 
     sendMovement: (map, x, y, isRunning) => {
-        ColyseusUtils.colyseusRoom.send('player_move', {map, x, y, isRunning});
+        ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.PLAYER_MOVE, {map, x, y, isRunning});
     },
 
     getPlayers: () => {
@@ -113,25 +122,92 @@ var ColyseusUtils = {
         }
     },
 
+    getCurrentCombat: () => {
+        if (ColyseusUtils.colyseusRoom.state && ColyseusUtils.colyseusRoom.state.combat) {
+            return ColyseusUtils.colyseusRoom.state.combat;
+        } else {
+            return undefined;
+        }
+    },
+    hasCombat: () => {
+        const curr = ColyseusUtils.getCurrentCombat();
+        return curr ? curr.ongoing : false;
+    },
+    getCombatTroopId: () => {
+        const curr = ColyseusUtils.getCurrentCombat();
+        return curr ? curr.troopId : -1;
+    },
+    getCurrentEnemyHealth: () => {
+        const curr = ColyseusUtils.getCurrentCombat();
+        return curr ? curr.enemyHealth : -1;
+    },
+
+    isPlayerInCombat: (index) => {
+        const p = ColyseusUtils.getPlayers()[index];
+        return p && ColyseusUtils.colyseusRoom.state &&
+            ColyseusUtils.colyseusRoom.state.playersInCombat &&
+            ColyseusUtils.colyseusRoom.state.playersInCombat.includes(p.sessionId);
+    },
+    inCombatPlayerCount: () => {
+        return ColyseusUtils.colyseusRoom.state.playersInCombat.length;
+    },
+    isCurrentPlayerInCombat: () => {
+        return ColyseusUtils.colyseusRoom.state &&
+            ColyseusUtils.colyseusRoom.state.playersInCombat &&
+            ColyseusUtils.colyseusRoom.state.playersInCombat.includes(ColyseusUtils.colyseusRoom.sessionId);
+    },
+
+    joinCombat: () => {
+      ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.JOIN_COMBAT);
+    },
+    onPlayerJoinedCombat: (callback) => {
+      ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.JOIN_COMBAT,
+          (sessionId) => ColyseusUtils.colyseusRoom.sessionId !== sessionId && callback ? callback(sessionId) : undefined);
+    },
+    sendCombatEnded: () => {
+        ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.COMBAT_ENDED);
+    },
     broadcastEvent: (type, data) => {
-        ColyseusUtils.colyseusRoom.send('player_event', {type, data, sender: ColyseusUtils.colyseusRoom.sessionId});
+        ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.PLAYER_EVENT, {type, data, sender: ColyseusUtils.colyseusRoom.sessionId});
     },
     onStateChange: (callback) => {
         ColyseusUtils.colyseusRoom.onStateChange(callback);
     },
     onPlayerJoined: (callback) => {
-        ColyseusUtils.colyseusRoom.onMessage('joined', callback);
+        ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.JOINED, callback);
     },
     onPlayerLeft: (callback) => {
-        ColyseusUtils.colyseusRoom.onMessage('left', callback);
+        ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.LEFT, callback);
     },
     onPlayerEvent: (callback) => {
-      if (callback) {
-          ColyseusUtils.colyseusRoom.onMessage('player_event', (event) => {
+        if (callback) {
+          ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.PLAYER_EVENT, (event) => {
               if (event && event.sender && event.sender !== ColyseusUtils.colyseusRoom.sessionId) {
                   callback(event);
               }
           });
-      }
+        }
+    },
+    onEnemyAttack: (callback) => {
+        if (callback) {
+            ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.ENEMY_ATTACK, (event) => {
+                const isSpecial = event && event.isSpecial;
+                callback(isSpecial);
+            });
+        }
+    },
+
+    removeCallback: (name, index) => {
+        if (ColyseusUtils.colyseusRoom &&
+            ColyseusUtils.colyseusRoom.onMessageHandlers &&
+            ColyseusUtils.colyseusRoom.onMessageHandlers.events) {
+            const arr = ColyseusUtils.colyseusRoom.onMessageHandlers.events[name];
+            if (arr && index) {
+                arr.splice(index, 1);
+            } else {
+                ColyseusUtils.colyseusRoom.onMessageHandlers.events[name] = undefined;
+                delete ColyseusUtils.colyseusRoom.onMessageHandlers.events[name];
+            }
+        }
     },
 };

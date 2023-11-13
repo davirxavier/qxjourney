@@ -2949,6 +2949,7 @@ Scene_Battle.prototype.constructor = Scene_Battle;
 
 Scene_Battle.prototype.initialize = function() {
     Scene_Message.prototype.initialize.call(this);
+    this._calledBattleEnded = false;
 };
 
 Scene_Battle.prototype.create = function() {
@@ -3028,6 +3029,7 @@ Scene_Battle.prototype.stop = function() {
     this._statusWindow.close();
     this._partyCommandWindow.close();
     this._actorCommandWindow.close();
+    BattleManager.cleanMultiplayer();
 };
 
 Scene_Battle.prototype.terminate = function() {
@@ -3038,6 +3040,7 @@ Scene_Battle.prototype.terminate = function() {
     if (this.shouldAutosave()) {
         this.requestAutosave();
     }
+    BattleManager.cleanMultiplayer();
 };
 
 Scene_Battle.prototype.shouldAutosave = function() {
@@ -3130,6 +3133,46 @@ Scene_Battle.prototype.createDisplayObjects = function() {
 Scene_Battle.prototype.createSpriteset = function() {
     this._spriteset = new Spriteset_Battle();
     this.addChild(this._spriteset);
+
+    let spritesSliced = this._spriteset._actorSprites.slice(1);
+
+    for (let i = 0; i < ColyseusUtils.inCombatPlayerCount()-1; i++) {
+        $gameSwitches.setValue(71+i, true);
+    }
+
+    ColyseusUtils.onPlayerLeft((sess) => {
+        const index = ColyseusUtils.getPlayers().findIndex(saved => saved.sessionId === sess);
+        if (index >= 0) {
+            this._spriteset.removeActor(index);
+            spritesSliced = this._spriteset._actorSprites.slice(1);
+            $gameSwitches.setValue(71+index, false);
+        }
+    });
+
+    ColyseusUtils.onPlayerJoinedCombat((sessionId) => {
+        const index = ColyseusUtils.getPlayers().findIndex(p => p.sessionId === sessionId);
+        if (index >= 0) {
+            this._spriteset.createNewActor();
+            spritesSliced = this._spriteset._actorSprites.slice(1);
+            $gameSwitches.setValue(71+ColyseusUtils.getPlayers().findIndex(p2 => p2.sessionId === sessionId), true);
+        }
+    });
+
+    ColyseusUtils.onPlayerEvent(event => {
+        if (event.type === ColyseusUtils.eventTypes.ATTACK_EVENT) {
+            const battlerIndex = ColyseusUtils.getPlayers().findIndex(p => p.sessionId === event.sender);
+            if (battlerIndex >= 0) {
+                this.doAction($gameParty.battleMembers()[battlerIndex+1], 'a', event.data ? event.data.skillId : undefined, true);
+            }
+        }
+    });
+
+    ColyseusUtils.onEnemyAttack((isSpecial) => {
+        if (ColyseusUtils.getCurrentEnemyHealth() > 0) {
+            const enemy = $gameTroop._enemies[0];
+            this.doAction($gameParty.battleMembers()[0], 'a', isSpecial ? enemy._colyseusSpecialAttack : 240, true, enemy);
+        }
+    });
 };
 
 Scene_Battle.prototype.createAllWindows = function() {
@@ -3168,25 +3211,10 @@ Scene_Battle.prototype.createCustomButtons = function () {
 
     this._attackButton.setClickHandler(this.handleActionButton.bind(this, 'a'));
     this._guardButton.setClickHandler(this.handleActionButton.bind(this, 'g'));
-    this._specialButton.setClickHandler(this.handleActionButton.bind(this, 's'));
+    this._specialButton.setClickHandler(this.handleActionButton.bind(this, 'a', $gameParty.battleMembers()[0].skills()[0].id));
 }
 
-const actionsByType = {
-    a: {
-        event: ColyseusUtils.eventTypes.ATTACK_EVENT,
-        setAction: (action) => action.setAttack(),
-    },
-    g: {
-        event: ColyseusUtils.eventTypes.EVADE_EVENT,
-        setAction: (action) => action.setGuard(),
-    },
-    s: {
-        event: ColyseusUtils.eventTypes.SPECIAL_EVENT,
-        setAction: (action) => action.setSkill(45),
-    },
-};
-
-Scene_Battle.prototype.handleActionButton = function (type) {
+Scene_Battle.prototype.handleActionButton = function (type, skillId) {
     if (!this._isRechargingButtons) {
         let value = 100;
 
@@ -3195,20 +3223,7 @@ Scene_Battle.prototype.handleActionButton = function (type) {
         this._guardButton.setValue(value);
         this._specialButton.setValue(value);
 
-        const actionData = actionsByType[type];
-        ColyseusUtils.broadcastEvent(actionData.event, {});
-        BattleManager._currentActor = $gameParty.battleMembers()[0];
-
-        const action = new Game_Action(BattleManager._currentActor);
-        actionData.setAction(action);
-
-        BattleManager._currentActor._actions = [];
-        BattleManager._currentActor.setAction(0, action);
-        BattleManager._currentActor.setActionState("waiting");
-
-        BattleManager._subject = BattleManager._currentActor;
-        BattleManager.startAction();
-        BattleManager._currentActor._actions = [];
+        this.doAction($gameParty.battleMembers()[0], type, skillId);
 
         const func = () => {
             setTimeout(() => {
@@ -3240,6 +3255,45 @@ const switchByButton = {
 Scene_Battle.prototype.setRechargingActions = function (val, type) {
     this._isRechargingButtons = val;
     Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], val));
+}
+
+const actionsByType = {
+    a: {
+        event: ColyseusUtils.eventTypes.ATTACK_EVENT,
+        setAction: (action, skillId) => skillId ? action.setSkill(skillId) : action.setAttack(),
+    },
+    g: {
+        event: ColyseusUtils.eventTypes.GUARD_EVENT,
+        setAction: (action) => action.setGuard(),
+    },
+};
+
+Scene_Battle.prototype.doAction = function (battler, actionKey, skillId, omitEvent, enemy) {
+    BattleManager._currentActor = battler;
+
+    let actionDoer = battler;
+    if (enemy) {
+        actionDoer = enemy;
+    }
+
+    const actionData = actionsByType[actionKey];
+    const action = new Game_Action(actionDoer, true);
+    actionData.setAction(action, skillId);
+    const damage = action.makeDamageValue($gameTroop._enemies[0]);
+
+    actionDoer._actions = [];
+    actionDoer.setAction(0, action);
+    actionDoer.setActionState("waiting");
+
+    setTimeout(() => {
+        BattleManager._subject = actionDoer;
+        BattleManager.startAction();
+        actionDoer._actions = [];
+
+        if (!omitEvent) {
+            ColyseusUtils.broadcastEvent(actionData.event, {skillId, damage});
+        }
+    }, 50);
 }
 
 Scene_Battle.prototype.createLogWindow = function() {

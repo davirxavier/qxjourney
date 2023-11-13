@@ -748,6 +748,10 @@ Sprite_Battler.prototype.damageOffsetY = function() {
 };
 
 Sprite_Battler.prototype.startMove = function(x, y, duration) {
+    if (x === -48 && y === 0 && duration === 12) { // If is step forward, do not do movement
+        return;
+    }
+
     if (this._targetOffsetX !== x || this._targetOffsetY !== y) {
         this._targetOffsetX = x;
         this._targetOffsetY = y;
@@ -949,7 +953,9 @@ Sprite_Actor.prototype.shouldStepForward = function() {
 
 Sprite_Actor.prototype.updateBitmap = function() {
     Sprite_Battler.prototype.updateBitmap.call(this);
-    const name = this._actor.battlerName();
+    // const name = this._actor.battlerName();
+    const battlerIndex = this._battler.index();
+    const name = "Actor1_" + ((battlerIndex === 0 ? ColyseusUtils.getCurrentPlayer() : (ColyseusUtils.getPlayers()[battlerIndex-1] || {playerSprite: 0})).playerSprite + 1);
     if (this._battlerName !== name) {
         this._battlerName = name;
         this._mainSprite.bitmap = ImageManager.loadSvActor(name);
@@ -3815,6 +3821,20 @@ Spriteset_Battle.prototype.createActors = function() {
             this._battleField.addChild(sprite);
         }
     }
+};
+
+Spriteset_Battle.prototype.createNewActor = function() {
+    const sprite = new Sprite_Actor();
+    this._actorSprites.push(sprite);
+    this._battleField.addChild(sprite);
+};
+
+Spriteset_Battle.prototype.removeActor = function(index) {
+    const sprite = this._actorSprites[index];
+    this._actorSprites.splice(index, 1);
+    this._battleField.removeChild(sprite);
+    sprite.opacity = 0;
+    sprite.destroy();
 };
 
 Spriteset_Battle.prototype.updateActors = function() {

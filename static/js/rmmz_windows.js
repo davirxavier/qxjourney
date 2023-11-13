@@ -5420,7 +5420,16 @@ Window_BattleLog.prototype.callNextMethod = function() {
     if (this._methods.length > 0) {
         const method = this._methods.shift();
         if (method.name && this[method.name]) {
-            this[method.name].apply(this, method.params);
+            try {
+                this[method.name].apply(this, method.params);
+            } catch (e) {
+                if (e && e.message && e.message.includes('_0x12a960.battler() is undefined')) {
+                    console.log('Detected error' + e.message + ', seems skippable...')
+                }
+                else {
+                    throw e;
+                }
+            }
         } else {
             throw new Error("Method not found: " + method.name);
         }

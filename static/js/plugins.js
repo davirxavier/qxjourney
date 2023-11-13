@@ -8,5 +8,6 @@ var $plugins =
 {"name":"Zain_TitleSkip","status":true,"description":"Makes it so the default title screen is skipped when booting up the game and after a gameover.","parameters":{}},
 {"name":"SRD_UltraBase","status":true,"description":"Contains code required for HUD Maker Ultra. Does not affect the RPG Maker codebase.","parameters":{}},
 {"name":"SRD_HUDMakerUltra","status":true,"description":"Allows you to create and use HUDs for the map and battles.\r\nRequires the HUD Maker Ultra editor.","parameters":{"Auto-Reload HUD Data":"false","Enable Screenshots":"false","Hide Battle Status Window":"false","Hide Battle Selection Window":"false","Fade During Events":"true","Event Fade Opacity":"125","Fade Duration":"10","Map Visibility Code":"return true;","Battle Visibility Code":"return true;"}},
-{"name":"noUnfocusPause","status":true,"description":"The game will remain active even if it loses focus.","parameters":{}}
+{"name":"noUnfocusPause","status":true,"description":"The game will remain active even if it loses focus.","parameters":{}},
+{"name":"Qxjourney","status":true,"description":"","parameters":{}}
 ];

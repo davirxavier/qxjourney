@@ -2237,6 +2237,32 @@ BattleManager.setup = function(troopId, canEscape, canLose) {
     $gameTroop.setup(troopId);
     $gameScreen.onBattleStart();
     this.makeEscapeRatio();
+    this._calledBattleEnded = false;
+
+    const enemy = $gameTroop._enemies[0];
+    if (ColyseusUtils.hasCombat()) {
+        const health = ColyseusUtils.getCurrentEnemyHealth();
+        enemy.setHp(health);
+        ColyseusUtils.joinCombat();
+    } else {
+        ColyseusUtils.broadcastEvent(ColyseusUtils.eventTypes.COMBAT_STARTED, {enemyMaxHealth: enemy.hp, enemyAttackInterval: enemy._colyseusAttackInterval});
+    }
+};
+
+BattleManager.cleanMultiplayer = function () {
+    ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.JOIN_COMBAT);
+    ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.PLAYER_EVENT);
+    ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.ENEMY_ATTACK);
+
+    for (let i = 0; i < 49; i++) {
+        $gameSwitches.setValue(71+i, false);
+    }
+
+    if (!this._calledBattleEnded) {
+        console.log('cleaned')
+        ColyseusUtils.sendCombatEnded();
+        this._calledBattleEnded = true;
+    }
 };
 
 BattleManager.initMembers = function() {
@@ -2944,6 +2970,7 @@ BattleManager.endBattle = function(result) {
         $gameSystem.onBattleEscape();
     }
     $gameTemp.clearCommonEventReservation();
+    this.cleanMultiplayer();
 };
 
 BattleManager.updateBattleEnd = function() {
