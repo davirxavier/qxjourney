@@ -12,16 +12,19 @@ export class Player extends Schema {
     mapNum = 0;
 
     @type("number")
-    x = 0;
+    x = -1;
 
     @type("number")
-    y = 0;
+    y = 1;
 
     @type("number")
     playerSprite = -1;
 
     @type("number")
     health: number;
+
+    @type("boolean")
+    reconnecting = false;
 
     @type("boolean")
     isRunning = false;
@@ -118,7 +121,7 @@ export class GameState extends Schema {
 
 export class GameRoom extends Room<GameState> {
 
-    onCreate(options: any): void | Promise<any> {
+    async onCreate(options: any): Promise<any> {
         this.clock.start();
         this.setState(new GameState());
 
@@ -178,14 +181,35 @@ export class GameRoom extends Room<GameState> {
         }).then(() => updateLobby(this));
     }
 
-    onJoin(client: Client, options) {
+    async onJoin(client: Client, options): Promise<any> {
         client.send(Events.EVENT_LIST, ({...Events}));
         this.broadcast(Events.PLAYER_JOINED, this.state.createPlayer(client.sessionId, options.name));
     }
 
-    onLeave(client: Client, consented?: boolean): void | Promise<any> {
-        this.state.removePlayer(client.sessionId);
-        this.broadcast(Events.PLAYER_LEFT, client.sessionId);
+    async removePlayer(sessionId: string) {
+        this.state.removePlayer(sessionId);
+        this.broadcast(Events.PLAYER_LEFT, sessionId);
+    }
+
+    async onLeave(client: Client, consented?: boolean): Promise<any> {
+        if (consented) {
+            await this.removePlayer(client.sessionId);
+        }
+        else {
+            const p = this.state.players.get(client.sessionId);
+            if (p) {
+                p.reconnecting = true;
+                this.broadcast(Events.PLAYER_RECONNECTING, client.sessionId);
+
+                try {
+                    await this.allowReconnection(client, 300);
+                    p.reconnecting = false;
+                    this.broadcast(Events.PLAYER_RECONNECTED, client.sessionId);
+                } catch (e) {
+                    await this.removePlayer(client.sessionId);
+                }
+            }
+        }
     }
 
 }

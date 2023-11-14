@@ -61,6 +61,14 @@ var ColyseusUtils = {
         });
     },
 
+    saveInfo: (token, name) => {
+      localStorage.setItem('rtoken', JSON.stringify({token, name}));
+    },
+    getSavedInfo: () => {
+        const token = localStorage.getItem('rtoken');
+        return token && token !== 'undefined' ? JSON.parse(token) : undefined;
+    },
+
     leaveRoom: () => {
         if (ColyseusUtils.colyseusRoom) {
             ColyseusUtils.colyseusRoom.leave(1001);
@@ -76,6 +84,7 @@ var ColyseusUtils = {
             roomName: roomName,
             maxPlayers: maxPlayers
         });
+        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
     },
 
     joinRoom: async (name, roomId) => {
@@ -84,6 +93,16 @@ var ColyseusUtils = {
         }
 
         ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.joinById(roomId, {name: name});
+        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
+    },
+
+    reconnect: async (name, token) => {
+        if (ColyseusUtils.colyseusRoom) {
+            ColyseusUtils.leaveRoom();
+        }
+
+        ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.reconnect(token);
+        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
     },
 
     sendMovement: (map, x, y, isRunning) => {

@@ -8118,8 +8118,8 @@ Game_Player.prototype.initMembers = function() {
 
     const currPlayer = ColyseusUtils.getCurrentPlayer();
     this.setCustomChar("Actor1", currPlayer ? currPlayer.playerSprite : 0);
-    $gameVariables.setValue(70, currPlayer.name);
-    $gameSwitches.setValue(70, true);
+    $gameVariables.setValue(uiStorage.variables.playerName49, currPlayer.name);
+    $gameSwitches.setValue(uiStorage.switches.showPlayer49, true);
 
     for (let i = 0; i < 50; i++) {
         $gameSwitches.setValue(71+i, false);

@@ -3192,27 +3192,28 @@ Scene_Battle.prototype.createAllWindows = function() {
 
 Scene_Battle.prototype.createCustomButtons = function () {
     this._attackButton = new Sprite_Action_Button("attack");
-    this._attackButton.x = (Graphics.boxWidth / 3) + 8 - this._attackButton.width*2;
-    this._attackButton.y = Graphics.boxHeight - this._attackButton.height - 10;
-
+    this._attackButton.x = (Graphics.boxWidth / 3) + 12 - this._attackButton.width*2;
+    this._attackButton.y = Graphics.boxHeight - this._attackButton.height - 8;
     this.addWindow(this._attackButton);
 
     this._guardButton = new Sprite_Action_Button("guard");
-    this._guardButton.x = (Graphics.boxWidth / 3 * 2) + 8 - this._guardButton.width*2;
-    this._guardButton.y = Graphics.boxHeight - this._guardButton.height - 10;
-
+    this._guardButton.x = (Graphics.boxWidth / 3 * 2) + 12 - this._guardButton.width*2;
+    this._guardButton.y = Graphics.boxHeight - this._guardButton.height - 8;
     this.addWindow(this._guardButton);
 
     this._specialButton = new Sprite_Action_Button("special");
-    this._specialButton.x = Graphics.boxWidth + 8 - this._specialButton.width*2;
-    this._specialButton.y = Graphics.boxHeight - this._specialButton.height - 10;
-
+    this._specialButton.x = Graphics.boxWidth + 12 - this._specialButton.width*2;
+    this._specialButton.y = Graphics.boxHeight - this._specialButton.height - 8;
     this.addWindow(this._specialButton);
+
+    this._attackButton.setClickHandler(this.handleActionButton.bind(this, 'a'));
+    this._guardButton.setClickHandler(this.handleActionButton.bind(this, 'g'));
+    this._specialButton.setClickHandler(this.handleActionButton.bind(this, 'a', $gameParty.battleMembers()[0].skills()[0].id));
 
     this._answerButtons = [];
     const pos = [58, 270, 450, 630];
     for (let i = 0; i < 4; i++) {
-        const btn = new Sprite_Action_Button("special");
+        const btn = new Sprite_Action_Button("empty");
         btn.shouldUpdateOpacity(false);
         btn.x = pos[i];
         btn.y = 502;
@@ -3220,10 +3221,6 @@ Scene_Battle.prototype.createCustomButtons = function () {
         this.addWindow(btn);
         this._answerButtons.push(btn);
     }
-
-    this._attackButton.setClickHandler(this.handleActionButton.bind(this, 'a'));
-    this._guardButton.setClickHandler(this.handleActionButton.bind(this, 'g'));
-    this._specialButton.setClickHandler(this.handleActionButton.bind(this, 'a', $gameParty.battleMembers()[0].skills()[0].id));
 }
 
 Scene_Battle.prototype.handleActionButton = function (type, skillId) {
@@ -3236,26 +3233,25 @@ Scene_Battle.prototype.handleActionButton = function (type, skillId) {
         this._guardButton.setValue(value);
         this._specialButton.setValue(value);
 
-        const func = () => {
-            setTimeout(() => {
-                value -= (100 * (timeout/1000)) / ColyseusUtils.abilityRechargeSeconds / (type === 's' ? 3 : 1);
+        let btnInterval = setInterval(() => {
+            value -= (100 * (timeout/1000)) / ColyseusUtils.abilityRechargeSeconds / (type === 's' ? 3 : 1);
+            this._attackButton.setValue(value);
+            this._guardButton.setValue(value);
+            this._specialButton.setValue(value);
+
+            if (value <= 0) {
+                this.setRechargingActions(false, type);
                 this._attackButton.setValue(value);
                 this._guardButton.setValue(value);
                 this._specialButton.setValue(value);
 
-                if (value <= 0) {
-                    this.setRechargingActions(false, type);
-                    this._attackButton.setValue(value);
-                    this._guardButton.setValue(value);
-                    this._specialButton.setValue(value);
-                } else {
-                    func();
+                if (btnInterval) {
+                    clearTimeout(btnInterval);
                 }
-            }, timeout);
-        };
-        func();
+            }
+        }, timeout);
 
-        $gameSwitches.setValue(521, true);
+        $gameSwitches.setValue(uiStorage.switches.answersShow, true);
 
         let mathOperation;
         if (type === 'a' && skillId) {
@@ -3266,28 +3262,28 @@ Scene_Battle.prototype.handleActionButton = function (type, skillId) {
             mathOperation = MathGenerator.gen2();
         }
 
-        $gameVariables.setValue(521, mathOperation.operands.join(' '));
-        $gameVariables.setValue(522, mathOperation.alternatives[0]);
-        $gameVariables.setValue(523, mathOperation.alternatives[1]);
-        $gameVariables.setValue(524, mathOperation.alternatives[2]);
-        $gameVariables.setValue(525, mathOperation.alternatives[3]);
+        $gameVariables.setValue(uiStorage.variables.questionText, mathOperation.operands.join(' '));
+        $gameVariables.setValue(uiStorage.variables.answerText0, mathOperation.alternatives[0]);
+        $gameVariables.setValue(uiStorage.variables.answerText1, mathOperation.alternatives[1]);
+        $gameVariables.setValue(uiStorage.variables.answerText2, mathOperation.alternatives[2]);
+        $gameVariables.setValue(uiStorage.variables.answerText3, mathOperation.alternatives[3]);
 
         this._attackButton.visible = false;
         this._guardButton.visible = false;
         this._specialButton.visible = false;
 
-        let valueQuestion = 115;
+        let valueQuestion = 110;
         let answeredCorrectly = false;
         let answered = false;
 
         const btns = [this._attackButton, this._guardButton, this._specialButton];
         let interval = setInterval(() => {
             valueQuestion -= (100 * (timeout/1000)) / ColyseusUtils.abilityRechargeSeconds;
-            $gameVariables.setValue(530, valueQuestion);
+            $gameVariables.setValue(uiStorage.variables.questionGaugeValue, valueQuestion);
 
             if (valueQuestion <= 0 || answered) {
-                $gameSwitches.setValue(521, false);
-                $gameVariables.setValue(530, 0);
+                $gameSwitches.setValue(uiStorage.switches.answersShow, false);
+                $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 0);
 
                 btns.forEach(b => b.visible = true);
 
