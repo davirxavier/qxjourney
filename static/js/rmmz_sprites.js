@@ -200,150 +200,6 @@ Sprite_Button.prototype.onClick = function() {
 };
 
 //-----------------------------------------------------------------------------
-// Sprite_Action_Button
-//
-// The sprite for displaying a button.
-
-function Sprite_Action_Button() {
-    this.initialize(...arguments);
-}
-
-Sprite_Action_Button.prototype = Object.create(Sprite_Clickable.prototype);
-Sprite_Action_Button.prototype.constructor = Sprite_Action_Button;
-
-Sprite_Action_Button.prototype.initialize = function(buttonType) {
-    Sprite_Clickable.prototype.initialize.call(this);
-    this._buttonType = buttonType;
-    this._clickHandler = null;
-    this._coldFrame = null;
-    this._hotFrame = null;
-    this._buttonData = null;
-    this._value = 0;
-    this._rechargeFrameCache = null;
-    this._shouldUpdateOpacity = true;
-    this.setupFrames();
-};
-
-Sprite_Action_Button.prototype.shouldUpdateOpacity = function (val) {
-    this._shouldUpdateOpacity = val;
-}
-
-Sprite_Action_Button.prototype.setValue = function (val) {
-    this._value = val;
-}
-
-Sprite_Action_Button.prototype.setupFrames = function() {
-    const data = this.buttonData();
-    this._buttonData = data;
-    const x = data.x * this.blockWidth();
-    const width = data.w * this.blockWidth();
-    const height = this.blockHeight();
-    this.loadButtonImage();
-    this.setColdFrame(x, 0, width, height);
-    this.setHotFrame(x, height, width, height);
-    this.updateFrame();
-    this.updateOpacity();
-};
-
-Sprite_Action_Button.prototype.blockWidth = function() {
-    return 96;
-};
-
-Sprite_Action_Button.prototype.blockHeight = function() {
-    return 96;
-};
-
-Sprite_Action_Button.prototype.loadButtonImage = function() {
-    this.bitmap = ImageManager.loadSystem("ActionIcons");
-};
-
-Sprite_Action_Button.prototype.buttonData = function() {
-    const buttonTable = {
-        attack: {x: 0, w: 1},
-        guard: {x: 1, w: 1},
-        special: {x: 2, w: 1},
-        empty: {x: 3, w: 1},
-    };
-    return buttonTable[this._buttonType];
-};
-
-Sprite_Action_Button.prototype.update = function() {
-    Sprite_Clickable.prototype.update.call(this);
-    this.checkBitmap();
-    this.updateFrame();
-    this.updateOpacity();
-    this.processTouch();
-
-    const rech = this.rechargeFrame();
-    if (rech) {
-        rech.setGaugeValue(this._value);
-    }
-};
-
-Sprite_Action_Button.prototype.checkBitmap = function() {
-    if (this.bitmap.isReady() && this.bitmap.width < this.blockWidth() * 3) {
-        // Probably MV image is used
-        throw new Error("ButtonSet image is too small");
-    }
-};
-
-Sprite_Action_Button.prototype.updateFrame = function() {
-    const frame = this.isPressed() ? this._hotFrame : this._coldFrame;
-    if (frame) {
-        this.setFrame(frame.x, frame.y, frame.width, frame.height);
-    }
-
-    const rech = this.rechargeFrame();
-    if (rech) {
-        rech.x = this.x + rech.width/2 + 4;
-        rech.y = this.y + rech.height/2 + 4;
-    }
-};
-
-Sprite_Action_Button.prototype.rechargeFrame = function () {
-    if (this._rechargeFrameCache) {
-        return this._rechargeFrameCache;
-    }
-
-    if (SceneManager._scene instanceof Scene_Battle &&
-        SceneManager._scene &&
-        SceneManager._scene._ultraHudContainer &&
-        SceneManager._scene._ultraHudContainer._mainHUD
-    ) {
-        this._rechargeFrameCache = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("abilityrecharge" + this._buttonData.x)
-        return this._rechargeFrameCache;
-    } else {
-        return undefined;
-    }
-}
-
-Sprite_Action_Button.prototype.updateOpacity = function() {
-    if (this._shouldUpdateOpacity) {
-        this.opacity = this._pressed && this._value <= 0 ? 255 : 192;
-    }
-};
-
-Sprite_Action_Button.prototype.setColdFrame = function(x, y, width, height) {
-    this._coldFrame = new Rectangle(x, y, width, height);
-};
-
-Sprite_Action_Button.prototype.setHotFrame = function(x, y, width, height) {
-    if (this._value > 0) {
-        this._hotFrame = new Rectangle(x, y, width, height);
-    }
-};
-
-Sprite_Action_Button.prototype.setClickHandler = function(method) {
-    this._clickHandler = method;
-};
-
-Sprite_Action_Button.prototype.onClick = function() {
-    if (this._clickHandler) {
-        this._clickHandler();
-    }
-};
-
-//-----------------------------------------------------------------------------
 // Sprite_Character
 //
 // The sprite for displaying a character.
@@ -630,19 +486,6 @@ Sprite_Battler.prototype.update = function() {
         this.updateDamagePopup();
         this.updateSelectionEffect();
         this.updateVisibility();
-
-        if (SceneManager._scene instanceof Scene_Battle &&
-            SceneManager._scene &&
-            SceneManager._scene._ultraHudContainer &&
-            SceneManager._scene._ultraHudContainer._mainHUD
-        ) {
-            const i = this._battler.index();
-            let hud = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("jogador" + (i === 0 && !this._battler._enemyId ? 49 : i-1));
-            if (hud) {
-                hud.x = this._homeX + 2;
-                hud.y = this._homeY - 82;
-            }
-        }
     } else {
         this.bitmap = null;
     }
@@ -756,10 +599,6 @@ Sprite_Battler.prototype.damageOffsetY = function() {
 };
 
 Sprite_Battler.prototype.startMove = function(x, y, duration) {
-    if (x === -48 && y === 0 && duration === 12) { // If is step forward, do not do movement
-        return;
-    }
-
     if (this._targetOffsetX !== x || this._targetOffsetY !== y) {
         this._targetOffsetX = x;
         this._targetOffsetY = y;
@@ -884,8 +723,7 @@ Sprite_Actor.prototype.setBattler = function(battler) {
     if (battler !== this._actor) {
         this._actor = battler;
         if (battler) {
-            const index = battler.index();
-            this.setHome(478 + index * 12, 200 + (index % 5) * 80);
+            this.setActorHome(battler.index());
         } else {
             this._mainSprite.bitmap = null;
             this._battlerName = "";
@@ -900,7 +738,7 @@ Sprite_Actor.prototype.moveToStartPosition = function() {
 };
 
 Sprite_Actor.prototype.setActorHome = function(index) {
-    this.setHome(478 + index * 12, 200 + (index % 5) * 80);
+    this.setHome(600 + index * 32, 280 + index * 48);
 };
 
 Sprite_Actor.prototype.update = function() {
@@ -961,9 +799,7 @@ Sprite_Actor.prototype.shouldStepForward = function() {
 
 Sprite_Actor.prototype.updateBitmap = function() {
     Sprite_Battler.prototype.updateBitmap.call(this);
-    // const name = this._actor.battlerName();
-    const battlerIndex = this._battler.index();
-    const name = "Actor1_" + ((battlerIndex === 0 ? ColyseusUtils.getCurrentPlayer() : (ColyseusUtils.getPlayers()[battlerIndex-1] || {playerSprite: 0})).playerSprite + 1);
+    const name = this._actor.battlerName();
     if (this._battlerName !== name) {
         this._battlerName = name;
         this._mainSprite.bitmap = ImageManager.loadSvActor(name);
@@ -3829,20 +3665,6 @@ Spriteset_Battle.prototype.createActors = function() {
             this._battleField.addChild(sprite);
         }
     }
-};
-
-Spriteset_Battle.prototype.createNewActor = function() {
-    const sprite = new Sprite_Actor();
-    this._actorSprites.push(sprite);
-    this._battleField.addChild(sprite);
-};
-
-Spriteset_Battle.prototype.removeActor = function(index) {
-    const sprite = this._actorSprites[index];
-    this._actorSprites.splice(index, 1);
-    this._battleField.removeChild(sprite);
-    sprite.opacity = 0;
-    sprite.destroy();
 };
 
 Spriteset_Battle.prototype.updateActors = function() {

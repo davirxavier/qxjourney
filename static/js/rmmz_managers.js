@@ -155,10 +155,6 @@ DataManager.makeEmptyMap = function() {
     $dataMap.scrollType = 3;
 };
 
-DataManager.getEventByName = (name) => {
-    return $dataMap.events.find(e => e && e.name == name);
-};
-
 DataManager.isMapLoaded = function() {
     this.checkError();
     return !!$dataMap;
@@ -2112,13 +2108,12 @@ SceneManager.updateScene = function() {
 
 SceneManager.isGameActive = function() {
     // [Note] We use "window.top" to support an iframe.
-    // try {
-    //     return window.top.document.hasFocus();
-    // } catch (e) {
-    //     // SecurityError
-    //     return true;
-    // }
-    return true;
+    try {
+        return window.top.document.hasFocus();
+    } catch (e) {
+        // SecurityError
+        return true;
+    }
 };
 
 SceneManager.onSceneTerminate = function() {
@@ -2237,32 +2232,6 @@ BattleManager.setup = function(troopId, canEscape, canLose) {
     $gameTroop.setup(troopId);
     $gameScreen.onBattleStart();
     this.makeEscapeRatio();
-    this._calledBattleEnded = false;
-
-    const enemy = $gameTroop._enemies[0];
-    if (ColyseusUtils.hasCombat()) {
-        const health = ColyseusUtils.getCurrentEnemyHealth();
-        enemy.setHp(health);
-        ColyseusUtils.joinCombat();
-    } else {
-        ColyseusUtils.broadcastEvent(ColyseusUtils.eventTypes.COMBAT_STARTED, {enemyMaxHealth: enemy.hp, enemyAttackInterval: enemy._colyseusAttackInterval});
-    }
-};
-
-BattleManager.cleanMultiplayer = function () {
-    ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.JOIN_COMBAT);
-    ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.PLAYER_EVENT);
-    ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.ENEMY_ATTACK);
-
-    for (let i = 0; i < 49; i++) {
-        $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false);
-    }
-
-    if (!this._calledBattleEnded) {
-        console.log('cleaned')
-        ColyseusUtils.sendCombatEnded();
-        this._calledBattleEnded = true;
-    }
 };
 
 BattleManager.initMembers = function() {
@@ -2970,7 +2939,6 @@ BattleManager.endBattle = function(result) {
         $gameSystem.onBattleEscape();
     }
     $gameTemp.clearCommonEventReservation();
-    this.cleanMultiplayer();
 };
 
 BattleManager.updateBattleEnd = function() {

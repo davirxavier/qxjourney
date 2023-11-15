@@ -5,6 +5,7 @@ var ColyseusUtils = {
     roomsAvailable: [],
     playerCount: 0,
     abilityRechargeSeconds: 4,
+    questionSolveSeconds: 10,
     attackDamage: 10,
     specialDamage: 50,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},

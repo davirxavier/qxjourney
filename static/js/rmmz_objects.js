@@ -1076,7 +1076,7 @@ Game_Screen.prototype.movePicture = function(
     if (picture) {
         // prettier-ignore
         picture.move(origin, x, y, scaleX, scaleY, opacity, blendMode,
-                     duration, easingType);
+            duration, easingType);
     }
 };
 
@@ -1593,8 +1593,7 @@ Game_Action.prototype.isMpRecover = function() {
 };
 
 Game_Action.prototype.isCertainHit = function() {
-    // return this.item().hitType === Game_Action.HITTYPE_CERTAIN;
-    return true;
+    return this.item().hitType === Game_Action.HITTYPE_CERTAIN;
 };
 
 Game_Action.prototype.isPhysical = function() {
@@ -3108,7 +3107,7 @@ Game_BattlerBase.prototype.isRestricted = function() {
 Game_BattlerBase.prototype.canInput = function() {
     // prettier-ignore
     return this.isAppeared() && this.isActor() &&
-            !this.isRestricted() && !this.isAutoBattle();
+        !this.isRestricted() && !this.isAutoBattle();
 };
 
 Game_BattlerBase.prototype.canMove = function() {
@@ -4163,8 +4162,8 @@ Game_Actor.prototype.expForLevel = function(level) {
     const acc_b = c.expParams[3];
     return Math.round(
         (basis * Math.pow(level - 1, 0.9 + acc_a / 250) * level * (level + 1)) /
-            (6 + Math.pow(level, 2) / 50 / acc_b) +
-            (level - 1) * extra
+        (6 + Math.pow(level, 2) / 50 / acc_b) +
+        (level - 1) * extra
     );
 };
 
@@ -5447,7 +5446,7 @@ Game_Party.prototype.allBattleMembers = function() {
 };
 
 Game_Party.prototype.maxBattleMembers = function() {
-    return ColyseusUtils.debugMode ? 25 : ColyseusUtils.inCombatPlayerCount();
+    return 4;
 };
 
 Game_Party.prototype.leader = function() {
@@ -5910,17 +5909,6 @@ Game_Troop.prototype.setup = function(troopId) {
             const x = member.x;
             const y = member.y;
             const enemy = new Game_Enemy(enemyId, x, y);
-
-            if ($dataEnemies[member.enemyId].meta && $dataEnemies[member.enemyId].meta.AttackInterval) {
-                enemy._colyseusAttackInterval = parseInt($dataEnemies[member.enemyId].meta.AttackInterval, 10) || 10;
-            } else {
-                enemy._colyseusAttackInterval = 10;
-            }
-
-            if ($dataEnemies[member.enemyId].meta && $dataEnemies[member.enemyId].meta.SpecialAttack) {
-                enemy._colyseusSpecialAttack = parseInt($dataEnemies[member.enemyId].meta.SpecialAttack, 10) || 240;
-            }
-
             if (member.hidden) {
                 enemy.hide();
             }
@@ -8115,9 +8103,6 @@ Game_Player.prototype.initMembers = function() {
     this._fadeType = 0;
     this._followers = new Game_Followers();
     this._encounterCount = 0;
-
-    const currPlayer = ColyseusUtils.getCurrentPlayer();
-    this.setCustomChar("Actor1", currPlayer ? currPlayer.playerSprite : 0);
 };
 
 Game_Player.prototype.clearTransferInfo = function() {
@@ -8132,17 +8117,11 @@ Game_Player.prototype.followers = function() {
     return this._followers;
 };
 
-Game_Player.prototype.setCustomChar = function (name, index) {
-    this._customCharName = name;
-    this._customCharIndex = index;
-    this.refresh();
-}
-
 Game_Player.prototype.refresh = function() {
-    // const actor = $gameParty.leader();
-    // const characterName = actor ? actor.characterName() : "";
-    // const characterIndex = actor ? actor.characterIndex() : 0;
-    this.setImage(this._customCharName, this._customCharIndex);
+    const actor = $gameParty.leader();
+    const characterName = actor ? actor.characterName() : "";
+    const characterIndex = actor ? actor.characterIndex() : 0;
+    this.setImage(characterName, characterIndex);
     this._followers.refresh();
 };
 
@@ -8379,9 +8358,6 @@ Game_Player.prototype.executeMove = function(direction) {
 };
 
 Game_Player.prototype.update = function(sceneActive) {
-    const lastX = this.x;
-    const lastY = this.y;
-
     const lastScrolledX = this.scrolledX();
     const lastScrolledY = this.scrolledY();
     const wasMoving = this.isMoving();
@@ -8396,10 +8372,6 @@ Game_Player.prototype.update = function(sceneActive) {
         this.updateNonmoving(wasMoving, sceneActive);
     }
     this._followers.update();
-
-    if (this.x !== lastX || this.y !== lastY) {
-        ColyseusUtils.sendMovement(0, this.x, this.y, this.realMoveSpeed() === 5);
-    }
 };
 
 Game_Player.prototype.updateDashing = function() {
@@ -8753,26 +8725,14 @@ Game_Follower.prototype.constructor = Game_Follower;
 Game_Follower.prototype.initialize = function(memberIndex) {
     Game_Character.prototype.initialize.call(this);
     this._memberIndex = memberIndex;
-    this._targetX = undefined;
-    this._targetY = undefined;
-    this._externalPlayer = undefined;
-    this._isRunning = false;
-    this.setTransparent(false);
+    this.setTransparent($dataSystem.optTransparent);
     this.setThrough(true);
-    this._customCharName = "";
-    this._customCharIndex = 0;
 };
 
-Game_Follower.prototype.setCustomChar = function(name, index) {
-    this._customCharName = name;
-    this._customCharIndex = index;
-    this.refresh();
-}
-
 Game_Follower.prototype.refresh = function() {
-    // const characterName = this.isVisible() ? this.actor().characterName() : "";
-    // const characterIndex = this.isVisible() ? this.actor().characterIndex() : 0;
-    this.setImage(this._customCharName, this._customCharIndex);
+    const characterName = this.isVisible() ? this.actor().characterName() : "";
+    const characterIndex = this.isVisible() ? this.actor().characterIndex() : 0;
+    this.setImage(characterName, characterIndex);
 };
 
 Game_Follower.prototype.actor = function() {
@@ -8789,29 +8749,13 @@ Game_Follower.prototype.isGathered = function() {
 
 Game_Follower.prototype.update = function() {
     Game_Character.prototype.update.call(this);
-    // this.setMoveSpeed($gamePlayer.realMoveSpeed());
-    // this.setOpacity($gamePlayer.opacity());
-    // this.setBlendMode($gamePlayer.blendMode());
-    // this.setWalkAnime($gamePlayer.hasWalkAnime());
-    // this.setStepAnime($gamePlayer.hasStepAnime());
-    // this.setDirectionFix($gamePlayer.isDirectionFixed());
-    // this.setTransparent($gamePlayer.isTransparent());
-
-    if (this.x === this._targetX) {
-        this._targetX = undefined;
-    }
-    if (this.y === this._targetY) {
-        this._targetY = undefined;
-    }
-
-    if (this._targetX || this._targetX === 0 || this._targetY || this._targetY === 0) {
-        this.chaseCoords(this._targetX, this._targetY);
-        this.setMoveSpeed(this._isRunning ? 5 : 4);
-    }
-};
-
-Game_Follower.prototype.chaseCoords = function(x, y) {
-    this.moveStraight(this.findDirectionTo(x || this.x, y || this.y));
+    this.setMoveSpeed($gamePlayer.realMoveSpeed());
+    this.setOpacity($gamePlayer.opacity());
+    this.setBlendMode($gamePlayer.blendMode());
+    this.setWalkAnime($gamePlayer.hasWalkAnime());
+    this.setStepAnime($gamePlayer.hasStepAnime());
+    this.setDirectionFix($gamePlayer.isDirectionFixed());
+    this.setTransparent($gamePlayer.isTransparent());
 };
 
 Game_Follower.prototype.chaseCharacter = function(character) {
@@ -8840,92 +8784,14 @@ Game_Followers.prototype.initialize = function() {
     this._visible = $dataSystem.optFollowers;
     this._gathering = false;
     this._data = [];
-    this._playerMap = {};
-    this._hudMap = {};
-    this._startingPos = {x: 0, y: 0};
-    this._startingPosInit = false;
     this.setup();
 };
 
 Game_Followers.prototype.setup = function() {
     this._data = [];
-
-    for (let i = 0; i < 50; i++) {
-        const newFollower = new Game_Follower(i+1);
-        newFollower.setTransparent(true);
-        newFollower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
-        newFollower.setCustomChar("", 0);
-        this._data.push(newFollower);
+    for (let i = 1; i < $gameParty.maxBattleMembers(); i++) {
+        this._data.push(new Game_Follower(i));
     }
-
-    ColyseusUtils.getPlayers().forEach(p => this.onPlayerJoined(p));
-
-    this.updateMove();
-    ColyseusUtils.onStateChange(() => {
-        this.updateMove();
-    });
-
-    ColyseusUtils.onPlayerJoined((p) => {
-        if (p) {
-            const follower = this.getBySessionId(p.sessionId);
-            if (follower) {
-                // TODO do
-            } else {
-                this.onPlayerJoined(p);
-            }
-        }
-    });
-
-    ColyseusUtils.onPlayerLeft((sessionId) => {
-        const follower = this.getBySessionId(sessionId);
-        if (follower) {
-            follower.setTransparent(true);
-            follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
-            follower.setCustomChar("", 0);
-
-            const followerIndex = this._data.findIndex(f => f === follower);
-            $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, false);
-
-            this._playerMap[sessionId] = undefined;
-            delete this._playerMap[sessionId];
-
-            this._hudMap[followerIndex] = undefined;
-            delete this._hudMap[followerIndex];
-        }
-    });
-};
-
-Game_Followers.prototype.getStartingPos = function () {
-    if (!this._startingPosInit && $dataMap && $dataMap.events) {
-        const spawnEvent = DataManager.getEventByName('SPAWN');
-        this._startingPos = {x: spawnEvent.x, y: spawnEvent.y};
-        this._startingPosInit = true;
-    }
-
-    return this._startingPos;
-};
-
-Game_Followers.prototype.onPlayerJoined = function(p) {
-    const followerIndex = this._data.findIndex(f => f.isTransparent())
-    const follower = this._data[followerIndex];
-    follower.setTransparent(false);
-    follower._isRunning = p.isRunning;
-    follower._externalPlayer = p;
-    follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
-    follower.setCustomChar("Actor1", p.playerSprite);
-
-    $gameVariables.setValue(uiStorage.variables.playerName0 + followerIndex, p.name);
-    $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, true);
-
-    this._playerMap[p.sessionId] = follower;
-};
-
-Game_Followers.prototype.getBySessionId = function(sessionId) {
-    return this._playerMap[sessionId];
-};
-
-Game_Followers.prototype.getActive = function() {
-    return Object.keys(this._playerMap).map(k => this._playerMap[k]);
 };
 
 Game_Followers.prototype.isVisible = function() {
@@ -8953,7 +8819,7 @@ Game_Followers.prototype.follower = function(index) {
 };
 
 Game_Followers.prototype.refresh = function() {
-    for (const follower of this.getActive()) {
+    for (const follower of this._data) {
         follower.refresh();
     }
 };
@@ -8961,42 +8827,27 @@ Game_Followers.prototype.refresh = function() {
 Game_Followers.prototype.update = function() {
     if (this.areGathering()) {
         if (!this.areMoving()) {
-            // this.updateMove();
+            this.updateMove();
         }
         if (this.areGathered()) {
             this._gathering = false;
         }
     }
-    this.getActive().forEach((f, i) => {
-        f.update();
-
-        if (SceneManager._scene instanceof Scene_Map) {
-            let hud = this._hudMap[i];
-            if (hud && hud.transform) {
-                hud.x = f.screenX();
-                hud.y = f.screenY() - 54;
-            } else {
-                hud = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("nome jogador " + i);
-                this._hudMap[i] = hud;
-            }
-        }
-    });
+    for (const follower of this._data) {
+        follower.update();
+    }
 };
 
 Game_Followers.prototype.updateMove = function() {
-    this.getActive().forEach((gf, i) => {
-        const p = ColyseusUtils.getPlayer(gf._externalPlayer.sessionId);
-        if (p && p.x !== -1 && p.y !== -1) {
-            gf._targetX = p.x !== gf._x ? p.x : undefined;
-            gf._targetY = p.y !== gf._y ? p.y : undefined;
-            gf._isRunning = p.isRunning;
-        }
-    });
+    for (let i = this._data.length - 1; i >= 0; i--) {
+        const precedingCharacter = i > 0 ? this._data[i - 1] : $gamePlayer;
+        this._data[i].chaseCharacter(precedingCharacter);
+    }
 };
 
 Game_Followers.prototype.jumpAll = function() {
     if ($gamePlayer.isJumping()) {
-        for (const follower of this.getActive()) {
+        for (const follower of this._data) {
             const sx = $gamePlayer.deltaXFrom(follower.x);
             const sy = $gamePlayer.deltaYFrom(follower.y);
             follower.jump(sx, sy);
@@ -9005,7 +8856,7 @@ Game_Followers.prototype.jumpAll = function() {
 };
 
 Game_Followers.prototype.synchronize = function(x, y, d) {
-    for (const follower of this.getActive()) {
+    for (const follower of this._data) {
         follower.locate(x, y);
         follower.setDirection(d);
     }

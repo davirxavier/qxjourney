@@ -169,20 +169,9 @@
         return {operands: [op1, '*', op2], result: op1*op2, alternatives: alternatives[0], correctAlternative: alternatives[1]};
     }
 
-    const exports = window;
-
-    exports.setMessage = function(message) {
-        $gameSwitches.setValue(501, true);
-        $gameVariables.setValue(501, message);
-    }
-
-    exports.clearMessage = function () {
-        $gameSwitches.setValue(501, false);
-        $gameVariables.setValue(501, "");
-    }
-
-    exports.MathGenerator = MathGenerator;
-    exports.uiStorage = uiStorage;
+    //=============================================================================
+    // General
+    //=============================================================================
 
     Scene_Boot.prototype.startNormalGame = function() {
         const currentPlayer = ColyseusUtils.getCurrentPlayer();
@@ -223,4 +212,868 @@
         }
         Scene_Base.prototype.update.call(this);
     };
+
+    DataManager.getEventByName = (name) => {
+        return $dataMap.events.find(e => e && e.name == name);
+    };
+
+    SceneManager.isGameActive = function() {
+        // [Note] We use "window.top" to support an iframe.
+        // try {
+        //     return window.top.document.hasFocus();
+        // } catch (e) {
+        //     // SecurityError
+        //     return true;
+        // }
+        return true;
+    };
+
+    //=============================================================================
+    // Battle
+    //=============================================================================
+
+    const _BattleManager_setup = BattleManager.setup;
+    BattleManager.setup = function () {
+        _BattleManager_setup.apply(this, arguments);
+
+        this._calledBattleEnded = false;
+
+        const enemy = $gameTroop._enemies[0];
+        if (ColyseusUtils.hasCombat()) {
+            const health = ColyseusUtils.getCurrentEnemyHealth();
+            enemy.setHp(health);
+            ColyseusUtils.joinCombat();
+        } else {
+            ColyseusUtils.broadcastEvent(ColyseusUtils.eventTypes.COMBAT_STARTED, {enemyMaxHealth: enemy.hp, enemyAttackInterval: enemy._colyseusAttackInterval});
+        }
+    }
+
+    BattleManager.cleanMultiplayer = function () {
+        ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.JOIN_COMBAT);
+        ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.PLAYER_EVENT);
+        ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.ENEMY_ATTACK);
+
+        for (let i = 0; i < 49; i++) {
+            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false);
+        }
+
+        if (!this._calledBattleEnded) {
+            console.log('cleaned')
+            ColyseusUtils.sendCombatEnded();
+            this._calledBattleEnded = true;
+        }
+    };
+
+    const _BattleManager_endBattle = BattleManager.endBattle;
+    BattleManager.endBattle = function () {
+        _BattleManager_endBattle.apply(this, arguments);
+        this.cleanMultiplayer();
+    }
+
+    Game_Action.prototype.isCertainHit = function() {
+        // return this.item().hitType === Game_Action.HITTYPE_CERTAIN;
+        return true;
+    };
+
+    Game_Party.prototype.maxBattleMembers = function() {
+        return ColyseusUtils.debugMode ? 25 : ColyseusUtils.inCombatPlayerCount();
+    };
+
+    Game_Troop.prototype.setup = function(troopId) {
+        this.clear();
+        this._troopId = troopId;
+        this._enemies = [];
+        for (const member of this.troop().members) {
+            if ($dataEnemies[member.enemyId]) {
+                const enemyId = member.enemyId;
+                const x = member.x;
+                const y = member.y;
+                const enemy = new Game_Enemy(enemyId, x, y);
+
+                if ($dataEnemies[member.enemyId].meta && $dataEnemies[member.enemyId].meta.AttackInterval) {
+                    enemy._colyseusAttackInterval = parseInt($dataEnemies[member.enemyId].meta.AttackInterval, 10) || 10;
+                } else {
+                    enemy._colyseusAttackInterval = 10;
+                }
+
+                if ($dataEnemies[member.enemyId].meta && $dataEnemies[member.enemyId].meta.SpecialAttack) {
+                    enemy._colyseusSpecialAttack = parseInt($dataEnemies[member.enemyId].meta.SpecialAttack, 10) || 240;
+                }
+
+                if (member.hidden) {
+                    enemy.hide();
+                }
+                this._enemies.push(enemy);
+            }
+        }
+        this.makeUniqueNames();
+    };
+
+    const _Scene_Battle_initialize = Scene_Battle.prototype.initialize;
+    Scene_Battle.prototype.initialize = function () {
+        _Scene_Battle_initialize.apply(this, arguments);
+        this._calledBattleEnded = false;
+    }
+
+    const _Scene_Battle_stop = Scene_Battle.prototype.stop;
+    Scene_Battle.prototype.stop = function () {
+        _Scene_Battle_stop.apply(this, arguments);
+        BattleManager.cleanMultiplayer();
+    }
+
+    const _Scene_Battle_terminate = Scene_Battle.prototype.terminate;
+    Scene_Battle.prototype.terminate = function () {
+        _Scene_Battle_terminate.apply(this, arguments);
+        BattleManager.cleanMultiplayer();
+    }
+
+    Scene_Battle.prototype.updateCancelButton = function() {
+        if (this._cancelButton) {
+            this._cancelButton.visible = false;
+        }
+    };
+
+    const _Scene_Battle_createSpriteset = Scene_Battle.prototype.createSpriteset;
+    Scene_Battle.prototype.createSpriteset = function () {
+        _Scene_Battle_createSpriteset.apply(this, arguments);
+
+        let spritesSliced = this._spriteset._actorSprites.slice(1);
+
+        for (let i = 0; i < ColyseusUtils.inCombatPlayerCount()-1; i++) {
+            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, true);
+        }
+
+        ColyseusUtils.onPlayerLeft((sess) => {
+            const index = ColyseusUtils.getPlayers().findIndex(saved => saved.sessionId === sess);
+            if (index >= 0) {
+                this._spriteset.removeActor(index);
+                spritesSliced = this._spriteset._actorSprites.slice(1);
+                $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+index, false);
+            }
+        });
+
+        ColyseusUtils.onPlayerJoinedCombat((sessionId) => {
+            const index = ColyseusUtils.getPlayers().findIndex(p => p.sessionId === sessionId);
+            if (index >= 0) {
+                this._spriteset.createNewActor();
+                spritesSliced = this._spriteset._actorSprites.slice(1);
+                $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+ColyseusUtils.getPlayers().findIndex(p2 => p2.sessionId === sessionId), true);
+            }
+        });
+
+        ColyseusUtils.onPlayerEvent(event => {
+            if (event.type === ColyseusUtils.eventTypes.ATTACK_EVENT) {
+                const battlerIndex = ColyseusUtils.getPlayers().findIndex(p => p.sessionId === event.sender);
+                if (battlerIndex >= 0) {
+                    this.doAction($gameParty.battleMembers()[battlerIndex+1], 'a', event.data ? event.data.skillId : undefined, true);
+                }
+            }
+        });
+
+        ColyseusUtils.onEnemyAttack((isSpecial) => {
+            if (ColyseusUtils.getCurrentEnemyHealth() > 0) {
+                const enemy = $gameTroop._enemies[0];
+                this.doAction($gameParty.battleMembers()[0], 'a', isSpecial ? enemy._colyseusSpecialAttack : 240, true, enemy);
+            }
+        });
+    };
+
+    const _Scene_Battle_createAllWindows = Scene_Battle.prototype.createAllWindows;
+    Scene_Battle.prototype.createAllWindows = function () {
+        _Scene_Battle_createAllWindows.apply(this, arguments);
+        this.createCustomButtons();
+    }
+
+    Scene_Battle.prototype.createCustomButtons = function () {
+        this._attackButton = new Sprite_Action_Button("attack");
+        this._attackButton.x = (Graphics.boxWidth / 3) + 12 - this._attackButton.width*2;
+        this._attackButton.y = Graphics.boxHeight - this._attackButton.height - 8;
+        this.addWindow(this._attackButton);
+
+        this._guardButton = new Sprite_Action_Button("guard");
+        this._guardButton.x = (Graphics.boxWidth / 3 * 2) + 12 - this._guardButton.width*2;
+        this._guardButton.y = Graphics.boxHeight - this._guardButton.height - 8;
+        this.addWindow(this._guardButton);
+
+        this._specialButton = new Sprite_Action_Button("special");
+        this._specialButton.x = Graphics.boxWidth + 12 - this._specialButton.width*2;
+        this._specialButton.y = Graphics.boxHeight - this._specialButton.height - 8;
+        this.addWindow(this._specialButton);
+
+        this._attackButton.setClickHandler(this.handleActionButton.bind(this, 'a'));
+        this._guardButton.setClickHandler(this.handleActionButton.bind(this, 'g'));
+        this._specialButton.setClickHandler(this.handleActionButton.bind(this, 'a', $gameParty.battleMembers()[0].skills()[0].id));
+
+        this._answerButtons = [];
+        const pos = [58, 270, 450, 630];
+        for (let i = 0; i < 4; i++) {
+            const btn = new Sprite_Action_Button("empty");
+            btn.shouldUpdateOpacity(false);
+            btn.x = pos[i];
+            btn.y = 502;
+            btn.opacity = 0;
+            this.addWindow(btn);
+            this._answerButtons.push(btn);
+        }
+    }
+
+    Scene_Battle.prototype.handleActionButton = function (type, skillId) {
+        if (!this._isRechargingButtons) {
+            let value = 100;
+            const timeout = 100;
+
+            this.setRechargingActions(true, type);
+            this._attackButton.setValue(value);
+            this._guardButton.setValue(value);
+            this._specialButton.setValue(value);
+
+            let btnInterval = setInterval(() => {
+                value -= (100 * (timeout/1000)) / ColyseusUtils.abilityRechargeSeconds / (type === 's' ? 3 : 1);
+                this._attackButton.setValue(value);
+                this._guardButton.setValue(value);
+                this._specialButton.setValue(value);
+
+                if (value <= 0) {
+                    this.setRechargingActions(false, type);
+                    this._attackButton.setValue(value);
+                    this._guardButton.setValue(value);
+                    this._specialButton.setValue(value);
+
+                    if (btnInterval) {
+                        clearTimeout(btnInterval);
+                    }
+                }
+            }, timeout);
+
+            $gameSwitches.setValue(uiStorage.switches.answersShow, true);
+
+            let mathOperation;
+            if (type === 'a' && skillId) {
+                mathOperation = MathGenerator.gen3();
+            } else if (type === 'a') {
+                mathOperation = MathGenerator.gen1();
+            } else {
+                mathOperation = MathGenerator.gen2();
+            }
+
+            $gameVariables.setValue(uiStorage.variables.questionText, mathOperation.operands.join(' '));
+            $gameVariables.setValue(uiStorage.variables.answerText0, mathOperation.alternatives[0]);
+            $gameVariables.setValue(uiStorage.variables.answerText1, mathOperation.alternatives[1]);
+            $gameVariables.setValue(uiStorage.variables.answerText2, mathOperation.alternatives[2]);
+            $gameVariables.setValue(uiStorage.variables.answerText3, mathOperation.alternatives[3]);
+
+            this._attackButton.visible = false;
+            this._guardButton.visible = false;
+            this._specialButton.visible = false;
+
+            let valueQuestion = 110;
+            let answeredCorrectly = false;
+            let answered = false;
+
+            const btns = [this._attackButton, this._guardButton, this._specialButton];
+            let interval = setInterval(() => {
+                valueQuestion -= (100 * (timeout/1000)) / ColyseusUtils.questionSolveSeconds;
+                $gameVariables.setValue(uiStorage.variables.questionGaugeValue, valueQuestion);
+
+                if (valueQuestion <= 0 || answered) {
+                    $gameSwitches.setValue(uiStorage.switches.answersShow, false);
+                    $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 0);
+
+                    btns.forEach(b => b.visible = true);
+
+                    if (answeredCorrectly) {
+                        this.doAction($gameParty.battleMembers()[0], type, skillId);
+                    }
+                    clearInterval(interval);
+                }
+            }, timeout);
+
+
+            setTimeout(() => {
+                for (let i = 0; i < 4; i++) {
+                    this._answerButtons[i].setClickHandler(() => {
+                        answeredCorrectly = i === mathOperation.correctAlternative;
+                        answered = true;
+
+                        for (let j = 0; j < 4; j++) {
+                            this._answerButtons[j].setClickHandler(null);
+                        }
+                    });
+                }
+            }, 200)
+        }
+    }
+
+    const switchByButton = {
+        a: 3,
+        g: 4,
+        s: 5,
+    };
+
+    Scene_Battle.prototype.setRechargingActions = function (val, type) {
+        this._isRechargingButtons = val;
+        Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], val));
+    }
+
+    const actionsByType = {
+        a: {
+            event: ColyseusUtils.eventTypes.ATTACK_EVENT,
+            setAction: (action, skillId) => skillId ? action.setSkill(skillId) : action.setAttack(),
+        },
+        g: {
+            event: ColyseusUtils.eventTypes.GUARD_EVENT,
+            setAction: (action) => action.setGuard(),
+        },
+    };
+
+    Scene_Battle.prototype.doAction = function (battler, actionKey, skillId, omitEvent, enemy) {
+        BattleManager._currentActor = battler;
+
+        let actionDoer = battler;
+        if (enemy) {
+            actionDoer = enemy;
+        }
+
+        const actionData = actionsByType[actionKey];
+        const action = new Game_Action(actionDoer, true);
+        actionData.setAction(action, skillId);
+        const damage = action.makeDamageValue($gameTroop._enemies[0]);
+
+        actionDoer._actions = [];
+        actionDoer.setAction(0, action);
+        actionDoer.setActionState("waiting");
+
+        setTimeout(() => {
+            BattleManager._subject = actionDoer;
+            BattleManager.startAction();
+            actionDoer._actions = [];
+
+            if (!omitEvent) {
+                ColyseusUtils.broadcastEvent(actionData.event, {skillId, damage});
+            }
+        }, 50);
+    }
+
+    const _Sprite_Battler_update = Sprite_Battler.prototype.update;
+    Sprite_Battler.prototype.update = function () {
+        _Sprite_Battler_update.apply(this, arguments);
+        if (this._battler) {
+            if (SceneManager._scene instanceof Scene_Battle &&
+                SceneManager._scene &&
+                SceneManager._scene._ultraHudContainer &&
+                SceneManager._scene._ultraHudContainer._mainHUD
+            ) {
+                const i = this._battler.index();
+                let hud = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("jogador" + (i === 0 && !this._battler._enemyId ? 49 : i-1));
+                if (hud) {
+                    hud.x = this._homeX + 2;
+                    hud.y = this._homeY - 82;
+                }
+            }
+        }
+    }
+
+    const _Sprite_Battler_startMove = Sprite_Battler.prototype.startMove;
+    Sprite_Battler.prototype.startMove = function (x, y, duration) {
+        if (x === -48 && y === 0 && duration === 12) { // If is step forward, do not do movement
+            return;
+        }
+
+        _Sprite_Battler_startMove.apply(this, arguments);
+    }
+
+    Sprite_Actor.prototype.setBattler = function(battler) {
+        Sprite_Battler.prototype.setBattler.call(this, battler);
+        if (battler !== this._actor) {
+            this._actor = battler;
+            if (battler) {
+                const index = battler.index();
+                this.setHome(478 + index * 12, 200 + (index % 5) * 80);
+            } else {
+                this._mainSprite.bitmap = null;
+                this._battlerName = "";
+            }
+            this.startEntryMotion();
+            this._stateSprite.setup(battler);
+        }
+    };
+
+    Sprite_Actor.prototype.setActorHome = function(index) {
+        this.setHome(478 + index * 12, 200 + (index % 5) * 80);
+    };
+
+    Sprite_Actor.prototype.updateBitmap = function() {
+        Sprite_Battler.prototype.updateBitmap.call(this);
+        // const name = this._actor.battlerName();
+        const battlerIndex = this._battler.index();
+        const name = "Actor1_" + ((battlerIndex === 0 ? ColyseusUtils.getCurrentPlayer() : (ColyseusUtils.getPlayers()[battlerIndex-1] || {playerSprite: 0})).playerSprite + 1);
+        if (this._battlerName !== name) {
+            this._battlerName = name;
+            this._mainSprite.bitmap = ImageManager.loadSvActor(name);
+        }
+    };
+
+    Spriteset_Battle.prototype.createNewActor = function() {
+        const sprite = new Sprite_Actor();
+        this._actorSprites.push(sprite);
+        this._battleField.addChild(sprite);
+    };
+
+    Spriteset_Battle.prototype.removeActor = function(index) {
+        const sprite = this._actorSprites[index];
+        this._actorSprites.splice(index, 1);
+        this._battleField.removeChild(sprite);
+        sprite.opacity = 0;
+        sprite.destroy();
+    };
+
+    Window_BattleLog.prototype.callNextMethod = function() {
+        if (this._methods.length > 0) {
+            const method = this._methods.shift();
+            if (method.name && this[method.name]) {
+                try {
+                    this[method.name].apply(this, method.params);
+                } catch (e) {
+                    if (e && e.message && e.message.includes('_0x12a960.battler() is undefined')) {
+                        console.log('Detected error' + e.message + ', seems skippable...')
+                    }
+                    else {
+                        throw e;
+                    }
+                }
+            } else {
+                throw new Error("Method not found: " + method.name);
+            }
+        }
+    };
+
+    //=============================================================================
+    // Player and followers
+    //=============================================================================
+
+    const _Game_Player_initMembers = Game_Player.prototype.initMembers;
+    Game_Player.prototype.initMembers = function () {
+        _Game_Player_initMembers.apply(this, arguments);
+        const currPlayer = ColyseusUtils.getCurrentPlayer();
+        this.setCustomChar("Actor1", currPlayer ? currPlayer.playerSprite : 0);
+    }
+
+    Game_Player.prototype.setCustomChar = function (name, index) {
+        this._customCharName = name;
+        this._customCharIndex = index;
+        this.refresh();
+    }
+
+    Game_Player.prototype.refresh = function() {
+        // const actor = $gameParty.leader();
+        // const characterName = actor ? actor.characterName() : "";
+        // const characterIndex = actor ? actor.characterIndex() : 0;
+        this.setImage(this._customCharName, this._customCharIndex);
+        this._followers.refresh();
+    };
+
+    const _Game_Player_update = Game_Player.prototype.update;
+    Game_Player.prototype.update = function () {
+        const lastX = this.x;
+        const lastY = this.y;
+
+        _Game_Player_update.apply(this, arguments);
+
+        if (this.x !== lastX || this.y !== lastY) {
+            ColyseusUtils.sendMovement(0, this.x, this.y, this.realMoveSpeed() === 5);
+        }
+    }
+
+    const _Game_Follower_initialize = Game_Follower.prototype.initialize;
+    Game_Follower.prototype.initialize = function () {
+        _Game_Follower_initialize.apply(this, arguments);
+
+        this._targetX = undefined;
+        this._targetY = undefined;
+        this._externalPlayer = undefined;
+        this._isRunning = false;
+        this.setTransparent(false);
+        this.setThrough(true);
+        this._customCharName = "";
+        this._customCharIndex = 0;
+    }
+
+    Game_Follower.prototype.setCustomChar = function(name, index) {
+        this._customCharName = name;
+        this._customCharIndex = index;
+        this.refresh();
+    }
+
+    Game_Follower.prototype.refresh = function() {
+        // const characterName = this.isVisible() ? this.actor().characterName() : "";
+        // const characterIndex = this.isVisible() ? this.actor().characterIndex() : 0;
+        this.setImage(this._customCharName, this._customCharIndex);
+    };
+
+    Game_Follower.prototype.update = function() {
+        Game_Character.prototype.update.call(this);
+
+        if (this.x === this._targetX) {
+            this._targetX = undefined;
+        }
+        if (this.y === this._targetY) {
+            this._targetY = undefined;
+        }
+
+        if (this._targetX || this._targetX === 0 || this._targetY || this._targetY === 0) {
+            this.chaseCoords(this._targetX, this._targetY);
+            this.setMoveSpeed(this._isRunning ? 5 : 4);
+        }
+    };
+
+    Game_Follower.prototype.chaseCoords = function(x, y) {
+        this.moveStraight(this.findDirectionTo(x || this.x, y || this.y));
+    };
+
+    const _Game_Followers_initialize = Game_Followers.prototype.initialize;
+    Game_Followers.prototype.initialize = function () {
+        this._playerMap = {};
+        this._hudMap = {};
+        this._startingPos = {x: 0, y: 0};
+        this._startingPosInit = false;
+
+        _Game_Followers_initialize.apply(this, arguments);
+    }
+
+    Game_Followers.prototype.setup = function() {
+        this._data = [];
+
+        for (let i = 0; i < 50; i++) {
+            const newFollower = new Game_Follower(i+1);
+            newFollower.setTransparent(true);
+            newFollower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
+            newFollower.setCustomChar("", 0);
+            this._data.push(newFollower);
+        }
+
+        ColyseusUtils.getPlayers().forEach(p => this.onPlayerJoined(p));
+
+        this.updateMove();
+        ColyseusUtils.onStateChange(() => {
+            this.updateMove();
+        });
+
+        ColyseusUtils.onPlayerJoined((p) => {
+            if (p) {
+                const follower = this.getBySessionId(p.sessionId);
+                if (follower) {
+                    // TODO do
+                } else {
+                    this.onPlayerJoined(p);
+                }
+            }
+        });
+
+        ColyseusUtils.onPlayerLeft((sessionId) => {
+            const follower = this.getBySessionId(sessionId);
+            if (follower) {
+                follower.setTransparent(true);
+                follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
+                follower.setCustomChar("", 0);
+
+                const followerIndex = this._data.findIndex(f => f === follower);
+                $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, false);
+
+                this._playerMap[sessionId] = undefined;
+                delete this._playerMap[sessionId];
+
+                this._hudMap[followerIndex] = undefined;
+                delete this._hudMap[followerIndex];
+            }
+        });
+    };
+
+    Game_Followers.prototype.getStartingPos = function () {
+        if (!this._startingPosInit && $dataMap && $dataMap.events) {
+            const spawnEvent = DataManager.getEventByName('SPAWN');
+            this._startingPos = {x: spawnEvent.x, y: spawnEvent.y};
+            this._startingPosInit = true;
+        }
+
+        return this._startingPos;
+    };
+
+    Game_Followers.prototype.onPlayerJoined = function(p) {
+        const followerIndex = this._data.findIndex(f => f.isTransparent())
+        const follower = this._data[followerIndex];
+        follower.setTransparent(false);
+        follower._isRunning = p.isRunning;
+        follower._externalPlayer = p;
+        follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
+        follower.setCustomChar("Actor1", p.playerSprite);
+
+        $gameVariables.setValue(uiStorage.variables.playerName0 + followerIndex, p.name);
+        $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, true);
+
+        this._playerMap[p.sessionId] = follower;
+    };
+
+    Game_Followers.prototype.getBySessionId = function(sessionId) {
+        return this._playerMap[sessionId];
+    };
+
+    Game_Followers.prototype.getActive = function() {
+        return Object.keys(this._playerMap).map(k => this._playerMap[k]);
+    };
+
+    Game_Followers.prototype.refresh = function() {
+        for (const follower of this.getActive()) {
+            follower.refresh();
+        }
+    };
+
+    Game_Followers.prototype.update = function() {
+        if (this.areGathering()) {
+            if (!this.areMoving()) {
+                // this.updateMove();
+            }
+            if (this.areGathered()) {
+                this._gathering = false;
+            }
+        }
+        this.getActive().forEach((f, i) => {
+            f.update();
+
+            if (SceneManager._scene instanceof Scene_Map) {
+                let hud = this._hudMap[i];
+                if (hud && hud.transform) {
+                    hud.x = f.screenX();
+                    hud.y = f.screenY() - 54;
+                } else {
+                    hud = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("nome jogador " + i);
+                    this._hudMap[i] = hud;
+                }
+            }
+        });
+    };
+
+    Game_Followers.prototype.updateMove = function() {
+        this.getActive().forEach((gf, i) => {
+            const p = ColyseusUtils.getPlayer(gf._externalPlayer.sessionId);
+            if (p && p.x !== -1 && p.y !== -1) {
+                gf._targetX = p.x !== gf._x ? p.x : undefined;
+                gf._targetY = p.y !== gf._y ? p.y : undefined;
+                gf._isRunning = p.isRunning;
+            }
+        });
+    };
+
+    Game_Followers.prototype.jumpAll = function() {
+        if ($gamePlayer.isJumping()) {
+            for (const follower of this.getActive()) {
+                const sx = $gamePlayer.deltaXFrom(follower.x);
+                const sy = $gamePlayer.deltaYFrom(follower.y);
+                follower.jump(sx, sy);
+            }
+        }
+    };
+
+    Game_Followers.prototype.synchronize = function(x, y, d) {
+        for (const follower of this.getActive()) {
+            follower.locate(x, y);
+            follower.setDirection(d);
+        }
+    };
+
+    const _Scene_Map_initialize = Scene_Map.prototype.initialize;
+    Scene_Map.prototype.initialize = function () {
+        _Scene_Map_initialize.apply(this, arguments);
+
+        ColyseusUtils.getPlayers().forEach((p, i) => {
+            const actor = $gameActors.actor(i+1);
+            actor['externalPlayer'] = p;
+        });
+    }
+
+    //-----------------------------------------------------------------------------
+    // Custom button sprite
+    //
+
+    function Sprite_Action_Button() {
+        this.initialize(...arguments);
+    }
+
+    Sprite_Action_Button.prototype = Object.create(Sprite_Clickable.prototype);
+    Sprite_Action_Button.prototype.constructor = Sprite_Action_Button;
+
+    Sprite_Action_Button.prototype.initialize = function(buttonType) {
+        Sprite_Clickable.prototype.initialize.call(this);
+        this._buttonType = buttonType;
+        this._clickHandler = null;
+        this._coldFrame = null;
+        this._hotFrame = null;
+        this._buttonData = null;
+        this._value = 0;
+        this._rechargeFrameCache = null;
+        this._shouldUpdateOpacity = true;
+        this.setupFrames();
+    };
+
+    Sprite_Action_Button.prototype.shouldUpdateOpacity = function (val) {
+        this._shouldUpdateOpacity = val;
+    }
+
+    Sprite_Action_Button.prototype.setValue = function (val) {
+        this._value = val;
+    }
+
+    Sprite_Action_Button.prototype.setupFrames = function() {
+        const data = this.buttonData();
+        this._buttonData = data;
+        const x = data.x * this.blockWidth();
+        const width = data.w * this.blockWidth();
+        const height = this.blockHeight();
+        this.loadButtonImage();
+        this.setColdFrame(x, 0, width, height);
+        this.setHotFrame(x, height, width, height);
+        this.updateFrame();
+        this.updateOpacity();
+    };
+
+    Sprite_Action_Button.prototype.blockWidth = function() {
+        return 96;
+    };
+
+    Sprite_Action_Button.prototype.blockHeight = function() {
+        return 96;
+    };
+
+    Sprite_Action_Button.prototype.loadButtonImage = function() {
+        this.bitmap = ImageManager.loadSystem("ActionIcons");
+    };
+
+    Sprite_Action_Button.prototype.buttonData = function() {
+        const buttonTable = {
+            attack: {x: 0, w: 1},
+            guard: {x: 1, w: 1},
+            special: {x: 2, w: 1},
+            empty: {x: 3, w: 1},
+        };
+        return buttonTable[this._buttonType];
+    };
+
+    Sprite_Action_Button.prototype.update = function() {
+        Sprite_Clickable.prototype.update.call(this);
+        this.checkBitmap();
+        this.updateFrame();
+        this.updateOpacity();
+        this.processTouch();
+
+        const rech = this.rechargeFrame();
+        if (rech) {
+            rech.setGaugeValue(this._value);
+        }
+    };
+
+    Sprite_Action_Button.prototype.checkBitmap = function() {
+        if (this.bitmap.isReady() && this.bitmap.width < this.blockWidth() * 3) {
+            // Probably MV image is used
+            throw new Error("ButtonSet image is too small");
+        }
+    };
+
+    Sprite_Action_Button.prototype.updateFrame = function() {
+        const frame = this.isPressed() ? this._hotFrame : this._coldFrame;
+        if (frame) {
+            this.setFrame(frame.x, frame.y, frame.width, frame.height);
+        }
+
+        const rech = this.rechargeFrame();
+        if (rech) {
+            rech.x = this.x + rech.width/2 + 4;
+            rech.y = this.y + rech.height/2 + 4;
+        }
+    };
+
+    Sprite_Action_Button.prototype.rechargeFrame = function () {
+        if (this._rechargeFrameCache) {
+            return this._rechargeFrameCache;
+        }
+
+        if (SceneManager._scene instanceof Scene_Battle &&
+            SceneManager._scene &&
+            SceneManager._scene._ultraHudContainer &&
+            SceneManager._scene._ultraHudContainer._mainHUD
+        ) {
+            this._rechargeFrameCache = SceneManager._scene._ultraHudContainer._mainHUD.findComponentByName("abilityrecharge" + this._buttonData.x)
+            return this._rechargeFrameCache;
+        } else {
+            return undefined;
+        }
+    }
+
+    Sprite_Action_Button.prototype.updateOpacity = function() {
+        if (this._shouldUpdateOpacity) {
+            this.opacity = this._pressed && this._value <= 0 ? 255 : 192;
+        }
+    };
+
+    Sprite_Action_Button.prototype.setColdFrame = function(x, y, width, height) {
+        this._coldFrame = new Rectangle(x, y, width, height);
+    };
+
+    Sprite_Action_Button.prototype.setHotFrame = function(x, y, width, height) {
+        if (this._value > 0) {
+            this._hotFrame = new Rectangle(x, y, width, height);
+        }
+    };
+
+    Sprite_Action_Button.prototype.setClickHandler = function(method) {
+        this._clickHandler = method;
+    };
+
+    Sprite_Action_Button.prototype.onClick = function() {
+        if (this._clickHandler) {
+            this._clickHandler();
+        }
+    };
+
+    Window_PartyCommand.prototype.open = function() {
+    };
+
+    Window_PartyCommand.prototype.activate = function() {
+    };
+
+    Window_ActorCommand.prototype.open = function() {
+    };
+
+    Window_ActorCommand.prototype.activate = function() {
+    };
+
+    Window_BattleStatus.prototype.open = function() {
+    };
+
+    Window_BattleStatus.prototype.activate = function() {
+    };
+
+    Window_BattleActor.prototype.open = function() {
+    };
+
+    Window_BattleActor.prototype.activate = function() {
+    };
+
+    //=============================================================================
+    // Exports
+    //=============================================================================
+
+    const exports = window;
+
+    exports.setMessage = function(message) {
+        $gameSwitches.setValue(501, true);
+        $gameVariables.setValue(501, message);
+    }
+
+    exports.clearMessage = function () {
+        $gameSwitches.setValue(501, false);
+        $gameVariables.setValue(501, "");
+    }
+
+    exports.MathGenerator = MathGenerator;
+    exports.uiStorage = uiStorage;
+    exports.Sprite_Action_Button = Sprite_Action_Button;
 })();
