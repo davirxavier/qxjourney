@@ -3137,7 +3137,7 @@ Scene_Battle.prototype.createSpriteset = function() {
     let spritesSliced = this._spriteset._actorSprites.slice(1);
 
     for (let i = 0; i < ColyseusUtils.inCombatPlayerCount()-1; i++) {
-        $gameSwitches.setValue(71+i, true);
+        $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, true);
     }
 
     ColyseusUtils.onPlayerLeft((sess) => {
@@ -3145,7 +3145,7 @@ Scene_Battle.prototype.createSpriteset = function() {
         if (index >= 0) {
             this._spriteset.removeActor(index);
             spritesSliced = this._spriteset._actorSprites.slice(1);
-            $gameSwitches.setValue(71+index, false);
+            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+index, false);
         }
     });
 
@@ -3154,7 +3154,7 @@ Scene_Battle.prototype.createSpriteset = function() {
         if (index >= 0) {
             this._spriteset.createNewActor();
             spritesSliced = this._spriteset._actorSprites.slice(1);
-            $gameSwitches.setValue(71+ColyseusUtils.getPlayers().findIndex(p2 => p2.sessionId === sessionId), true);
+            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+ColyseusUtils.getPlayers().findIndex(p2 => p2.sessionId === sessionId), true);
         }
     });
 

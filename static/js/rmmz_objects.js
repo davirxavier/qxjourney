@@ -8118,21 +8118,6 @@ Game_Player.prototype.initMembers = function() {
 
     const currPlayer = ColyseusUtils.getCurrentPlayer();
     this.setCustomChar("Actor1", currPlayer ? currPlayer.playerSprite : 0);
-    $gameVariables.setValue(uiStorage.variables.playerName49, currPlayer.name);
-    $gameSwitches.setValue(uiStorage.switches.showPlayer49, true);
-
-    for (let i = 0; i < 50; i++) {
-        $gameSwitches.setValue(71+i, false);
-        if (i === 49) {
-            $gameSwitches.setValue(71+i, true);
-        }
-    }
-
-    if (ColyseusUtils.debugMode) {
-        for (let i = 0; i < 25; i++) {
-            $gameSwitches.setValue(21+i, true);
-        }
-    }
 };
 
 Game_Player.prototype.clearTransferInfo = function() {
@@ -8875,6 +8860,7 @@ Game_Followers.prototype.setup = function() {
 
     ColyseusUtils.getPlayers().forEach(p => this.onPlayerJoined(p));
 
+    this.updateMove();
     ColyseusUtils.onStateChange(() => {
         this.updateMove();
     });
@@ -8898,7 +8884,7 @@ Game_Followers.prototype.setup = function() {
             follower.setCustomChar("", 0);
 
             const followerIndex = this._data.findIndex(f => f === follower);
-            $gameSwitches.setValue(21 + followerIndex, false);
+            $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, false);
 
             this._playerMap[sessionId] = undefined;
             delete this._playerMap[sessionId];
@@ -8928,8 +8914,8 @@ Game_Followers.prototype.onPlayerJoined = function(p) {
     follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
     follower.setCustomChar("Actor1", p.playerSprite);
 
-    $gameVariables.setValue(21 + followerIndex, p.name);
-    $gameSwitches.setValue(21 + followerIndex, true);
+    $gameVariables.setValue(uiStorage.variables.playerName0 + followerIndex, p.name);
+    $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, true);
 
     this._playerMap[p.sessionId] = follower;
 };
@@ -9000,7 +8986,7 @@ Game_Followers.prototype.update = function() {
 Game_Followers.prototype.updateMove = function() {
     this.getActive().forEach((gf, i) => {
         const p = ColyseusUtils.getPlayer(gf._externalPlayer.sessionId);
-        if (p) {
+        if (p && p.x !== -1 && p.y !== -1) {
             gf._targetX = p.x !== gf._x ? p.x : undefined;
             gf._targetY = p.y !== gf._y ? p.y : undefined;
             gf._isRunning = p.isRunning;

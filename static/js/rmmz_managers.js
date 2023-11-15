@@ -2255,7 +2255,7 @@ BattleManager.cleanMultiplayer = function () {
     ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.ENEMY_ATTACK);
 
     for (let i = 0; i < 49; i++) {
-        $gameSwitches.setValue(71+i, false);
+        $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false);
     }
 
     if (!this._calledBattleEnded) {

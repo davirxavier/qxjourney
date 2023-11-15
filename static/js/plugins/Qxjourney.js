@@ -1,10 +1,10 @@
 (() => {
     const uiStorage = {
         switches: {
-            abilityRechargeShow0: 3,
-            abilityRechargeShow1: 4,
-            abilityRechargeShow2: 5,
-            answersShow: 521,
+            abilityRechargeShow0: 72,
+            abilityRechargeShow1: 73,
+            abilityRechargeShow2: 74,
+            answersShow: 77,
             screenMessage: 501,
             showPlayer0: 21,
             showPlayer1: 22,
@@ -56,6 +56,8 @@
             showPlayer47: 68,
             showPlayer48: 69,
             showPlayer49: 70,
+            showPlayerCombat0: 81,
+            showPlayerCombat49: 130,
         },
         variables: {
             screenMessage: 501,
@@ -192,6 +194,20 @@
         this.checkPlayerLocation();
         DataManager.setupNewGame();
         $gameSystem.disableMenu();
+
+        $gameVariables.setValue(uiStorage.variables.playerName49, ColyseusUtils.getCurrentPlayer().name);
+        $gameSwitches.setValue(uiStorage.switches.showPlayer49, true);
+
+        for (let i = 0; i < 50; i++) {
+            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false);
+        }
+        $gameSwitches.setValue(uiStorage.switches.showPlayerCombat49, true);
+
+        if (ColyseusUtils.debugMode) {
+            for (let i = 0; i < 25; i++) {
+                $gameSwitches.setValue(uiStorage.switches.showPlayer0+i, true);
+            }
+        }
 
         if (ColyseusUtils.hasCombat() && ColyseusUtils.isCurrentPlayerInCombat()) {
             new Game_Interpreter().command301([0, ColyseusUtils.getCombatTroopId(), false, false]);
