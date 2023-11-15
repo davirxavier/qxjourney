@@ -134,9 +134,11 @@
     MathGenerator.genAlternatives = function (result) {
         const ret = [];
         for (let i = 0; i < 4; i++) {
-            let random = this.randomIntFromInterval(0, result*2);
-            while (random === result || ret.includes(random)) {
-                random = this.randomIntFromInterval(0, result*2);
+            let counter = 0;
+            let random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result)*2);
+            while ((random === result || ret.includes(random)) && counter < 1000) {
+                counter++;
+                random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result)*2);
             }
             ret.push(random);
         }
@@ -264,7 +266,6 @@
         }
 
         if (!this._calledBattleEnded) {
-            console.log('cleaned')
             ColyseusUtils.sendCombatEnded();
             this._calledBattleEnded = true;
         }
@@ -318,7 +319,6 @@
     const _Scene_Battle_initialize = Scene_Battle.prototype.initialize;
     Scene_Battle.prototype.initialize = function () {
         _Scene_Battle_initialize.apply(this, arguments);
-        this._calledBattleEnded = false;
     }
 
     const _Scene_Battle_stop = Scene_Battle.prototype.stop;
@@ -344,6 +344,7 @@
         _Scene_Battle_createSpriteset.apply(this, arguments);
 
         let spritesSliced = this._spriteset._actorSprites.slice(1);
+        $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 100);
 
         for (let i = 0; i < ColyseusUtils.inCombatPlayerCount()-1; i++) {
             $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, true);
@@ -380,6 +381,10 @@
             if (ColyseusUtils.getCurrentEnemyHealth() > 0) {
                 const enemy = $gameTroop._enemies[0];
                 this.doAction($gameParty.battleMembers()[0], 'a', isSpecial ? enemy._colyseusSpecialAttack : 240, true, enemy);
+
+                if (this._currentRechargingActionType === 'g') {
+                    [this._attackButton, this._guardButton, this._specialButton].forEach(b => b.visible = true);
+                }
             }
         });
     };
@@ -390,20 +395,67 @@
         this.createCustomButtons();
     }
 
+    const _Scene_Battle_update = Scene_Battle.prototype.update;
+    Scene_Battle.prototype.update = function () {
+        _Scene_Battle_update.apply(this, arguments);
+
+        if (this._isRechargingButtons) {
+            this._buttonsRechargeVal -= 1.66 / ColyseusUtils.abilityRechargeSeconds / (this._currentRechargingActionType === 's' ? 3 : 1);
+            this._attackButton.setValue(this._buttonsRechargeVal);
+            this._guardButton.setValue(this._buttonsRechargeVal);
+            this._specialButton.setValue(this._buttonsRechargeVal);
+
+            if (this._buttonsRechargeVal <= 0) {
+                this._buttonsRechargeVal = 100;
+                this._isRechargingButtons = false;
+                this.setRechargingActions(false, this._currentRechargingActionType);
+                this._attackButton.setValue(this._buttonsRechargeVal);
+                this._guardButton.setValue(this._buttonsRechargeVal);
+                this._specialButton.setValue(this._buttonsRechargeVal);
+            }
+        }
+
+        if (this._isAnsweringMath) {
+            this._mathAnswerVal -= 1.66 / ColyseusUtils.questionSolveSeconds;
+            $gameVariables.setValue(uiStorage.variables.questionGaugeValue, this._mathAnswerVal);
+
+            if (this._mathAnswerVal <= 0 || this._answered) {
+                $gameSwitches.setValue(uiStorage.switches.answersShow, false);
+                $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 100);
+
+                if (this._currentRechargingActionType !== 'g') {
+                    [this._attackButton, this._guardButton, this._specialButton].forEach(b => b.visible = true);
+                }
+
+                if (this._answeredCorrectly) {
+                    this.doAction($gameParty.battleMembers()[0], this._currentRechargingActionType, this._currentRechargingSkillId);
+                } else {
+                    Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], false));
+                }
+
+                this._answeredCorrectly = false;
+                this._answered = false;
+            }
+        }
+    }
+
     Scene_Battle.prototype.createCustomButtons = function () {
         this._attackButton = new Sprite_Action_Button("attack");
         this._attackButton.x = (Graphics.boxWidth / 3) + 12 - this._attackButton.width*2;
         this._attackButton.y = Graphics.boxHeight - this._attackButton.height - 8;
+        this._attackButton.setValue(100);
         this.addWindow(this._attackButton);
 
         this._guardButton = new Sprite_Action_Button("guard");
         this._guardButton.x = (Graphics.boxWidth / 3 * 2) + 12 - this._guardButton.width*2;
         this._guardButton.y = Graphics.boxHeight - this._guardButton.height - 8;
+        this._guardButton.setValue(100);
         this.addWindow(this._guardButton);
 
         this._specialButton = new Sprite_Action_Button("special");
         this._specialButton.x = Graphics.boxWidth + 12 - this._specialButton.width*2;
         this._specialButton.y = Graphics.boxHeight - this._specialButton.height - 8;
+        this._specialButton.setValue(100);
         this.addWindow(this._specialButton);
 
         this._attackButton.setClickHandler(this.handleActionButton.bind(this, 'a'));
@@ -425,32 +477,13 @@
 
     Scene_Battle.prototype.handleActionButton = function (type, skillId) {
         if (!this._isRechargingButtons) {
-            let value = 100;
-            const timeout = 100;
+            this._buttonsRechargeVal = 100;
+            this._currentRechargingActionType = type;
+            this._currentRechargingSkillId = skillId;
 
-            this.setRechargingActions(true, type);
-            this._attackButton.setValue(value);
-            this._guardButton.setValue(value);
-            this._specialButton.setValue(value);
-
-            let btnInterval = setInterval(() => {
-                value -= (100 * (timeout/1000)) / ColyseusUtils.abilityRechargeSeconds / (type === 's' ? 3 : 1);
-                this._attackButton.setValue(value);
-                this._guardButton.setValue(value);
-                this._specialButton.setValue(value);
-
-                if (value <= 0) {
-                    this.setRechargingActions(false, type);
-                    this._attackButton.setValue(value);
-                    this._guardButton.setValue(value);
-                    this._specialButton.setValue(value);
-
-                    if (btnInterval) {
-                        clearTimeout(btnInterval);
-                    }
-                }
-            }, timeout);
-
+            if (type !== 'g') {
+                this.setRechargingActions(true, type);
+            }
             $gameSwitches.setValue(uiStorage.switches.answersShow, true);
 
             let mathOperation;
@@ -472,48 +505,31 @@
             this._guardButton.visible = false;
             this._specialButton.visible = false;
 
-            let valueQuestion = 110;
-            let answeredCorrectly = false;
-            let answered = false;
-
-            const btns = [this._attackButton, this._guardButton, this._specialButton];
-            let interval = setInterval(() => {
-                valueQuestion -= (100 * (timeout/1000)) / ColyseusUtils.questionSolveSeconds;
-                $gameVariables.setValue(uiStorage.variables.questionGaugeValue, valueQuestion);
-
-                if (valueQuestion <= 0 || answered) {
-                    $gameSwitches.setValue(uiStorage.switches.answersShow, false);
-                    $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 0);
-
-                    btns.forEach(b => b.visible = true);
-
-                    if (answeredCorrectly) {
-                        this.doAction($gameParty.battleMembers()[0], type, skillId);
-                    }
-                    clearInterval(interval);
-                }
-            }, timeout);
-
+            this._isAnsweringMath = true;
+            this._mathAnswerVal = 110;
+            $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 110);
+            this._answeredCorrectly = false;
+            this._answered = false;
 
             setTimeout(() => {
                 for (let i = 0; i < 4; i++) {
                     this._answerButtons[i].setClickHandler(() => {
-                        answeredCorrectly = i === mathOperation.correctAlternative;
-                        answered = true;
+                        this._answeredCorrectly = i === mathOperation.correctAlternative;
+                        this._answered = true;
 
                         for (let j = 0; j < 4; j++) {
                             this._answerButtons[j].setClickHandler(null);
                         }
                     });
                 }
-            }, 200)
+            }, 100);
         }
     }
 
     const switchByButton = {
-        a: 3,
-        g: 4,
-        s: 5,
+        a: uiStorage.switches.abilityRechargeShow0,
+        g: uiStorage.switches.abilityRechargeShow1,
+        s: uiStorage.switches.abilityRechargeShow2,
     };
 
     Scene_Battle.prototype.setRechargingActions = function (val, type) {
@@ -661,9 +677,27 @@
         this._isEnemyAttack = false;
     }
 
-    const _Game_Action_apply = Game_Action.prototype.apply;
-    Game_Action.prototype.apply = function () {
-        _Game_Action_apply.apply(this, arguments);
+    Game_Action.prototype.apply = function (target) {
+        const result = target.result();
+        this.subject().clearResult();
+        result.clear();
+        result.used = this.testApply(target);
+        result.missed = false;
+        result.evaded = false;
+        result.physical = this.isPhysical();
+        result.drain = this.isDrain();
+        if (result.isHit()) {
+            if (this.item().damage.type > 0) {
+                result.critical = Math.random() < this.itemCri(target);
+                const value = this.makeDamageValue(target, result.critical);
+                this.executeDamage(target, value);
+            }
+            for (const effect of this.item().effects) {
+                this.applyItemEffect(target, effect);
+            }
+            this.applyItemUserEffect(target);
+        }
+        this.updateLastTarget(target);
 
         if (this._isEnemyAttack) {
             $gameParty.battleMembers().forEach(bm => bm.setGuarding(false));
