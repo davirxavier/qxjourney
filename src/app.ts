@@ -4,7 +4,7 @@ import {LobbyRoom, Server} from "colyseus";
 import {GameRoom} from "./game.room";
 import {uWebSocketsTransport} from "@colyseus/uwebsockets-transport";
 
-const transport = new uWebSocketsTransport();
+const transport = new uWebSocketsTransport({sendPingsAutomatically: true});
 const app = expressify(transport.app);
 
 app.use(express.json());

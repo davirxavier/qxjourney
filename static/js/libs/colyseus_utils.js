@@ -4,7 +4,7 @@ var ColyseusUtils = {
     colyseusRoom: undefined,
     roomsAvailable: [],
     playerCount: 0,
-    abilityRechargeSeconds: 7,
+    abilityRechargeSeconds: 4,
     attackDamage: 10,
     specialDamage: 50,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
@@ -21,6 +21,10 @@ var ColyseusUtils = {
         JOINED: 'joined',
         LEFT: 'left',
         ENEMY_ATTACK: 'enemy_attack'
+    },
+    errorCodes: {
+        DISCONNECTED: 4000,
+        ROOM_DELETED: 4212,
     },
 
     init: async (url) => {
@@ -103,6 +107,12 @@ var ColyseusUtils = {
 
         ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.reconnect(token);
         ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
+    },
+
+    disconnect: async () => {
+        if (ColyseusUtils.colyseusRoom) {
+            await ColyseusUtils.colyseusRoom.leave();
+        }
     },
 
     sendMovement: (map, x, y, isRunning) => {
@@ -214,6 +224,13 @@ var ColyseusUtils = {
                 callback(isSpecial);
             });
         }
+    },
+    onDisconnected: (callback) => {
+          if (callback) {
+              ColyseusUtils.colyseusRoom.onLeave((code) => {
+                  callback(code);
+              });
+          }
     },
 
     removeCallback: (name, index) => {

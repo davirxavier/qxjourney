@@ -56,6 +56,7 @@
         <h2 style="font-size: 4vw;" class="fw-bold">QxJourney</h2>
         <span id="reconnectText" class="w-100 text-center" style="font-size: 2vw;">😅😅😅<br>Opa! Parece que você foi desconectado do jogo.</span>
         <button id="reconnectButton" class="mt-4 btn btn-primary" style="font-size: 2vw;">Reconectar!</button>
+        <button id="reconnectButton2" class="mt-4 btn btn-outline-primary" style="font-size: 2vw;">Cancelar</button>
     </div>
 
     <div id="nameContainer" class="w-100 d-flex flex-column align-items-center justify-content-center px-5">
@@ -90,7 +91,9 @@
         const nameContainer = document.getElementById("nameContainer");
         const reconnectContainer = document.getElementById("reconnectContainer");
         const reconnectButton = document.getElementById("reconnectButton");
+        const reconnectButton2 = document.getElementById("reconnectButton2");
         const reconnectText = document.getElementById("reconnectText");
+        const roomListing = document.getElementById("roomListing");
         reconnectContainer.style = 'display: none !important;';
 
         const savedInfo = ColyseusUtils.getSavedInfo();
@@ -107,21 +110,35 @@
                 isInit = false;
 
                 load(() => {
+                    const onRecError = (e) => {
+                        if (e && e.code === ColyseusUtils.errorCodes.ROOM_DELETED) {
+                            ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
+                            reconnectButton2.style = 'display: none !important;';
+                            reconnectText.innerHTML = "😔😔😔<br>Xiiii, parece que a sua sala no jogo foi apagada...";
+                            reconnectButton.innerText = "Criar uma nova!";
+
+                            reconnectButton.onclick = () => {
+                                location.reload();
+                            };
+                        }
+                        console.error(e);
+                    };
+
                     reconnectButton.onclick = () => {
                         ColyseusUtils.reconnect(colyseusPlayerName, savedInfo.token)
                             .then(() => loadFrame())
-                            .catch((e) => {
-                                if (e && e.code === 4212) {
-                                    ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
-                                    reconnectText.innerHTML = "😔😔😔<br>Xiiii, parece que a sua sala no jogo foi apagada...";
-                                    reconnectButton.innerText = "Criar uma nova!";
+                            .catch((e) => onRecError(e));
+                    };
 
-                                    reconnectButton.onclick = () => {
-                                      location.reload();
-                                    };
-                                }
-                                console.error(e);
-                            });
+                    const onCancel = () => {
+                      ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
+                      location.reload();
+                    };
+
+                    reconnectButton2.onclick = () => {
+                        ColyseusUtils.reconnect(colyseusPlayerName, savedInfo.token)
+                            .then(() => ColyseusUtils.disconnect())
+                            .then(() => onCancel()).catch(e => onCancel());
                     };
                 });
             }
@@ -148,6 +165,7 @@
             gameFrame.src = 'game.html';
 
             document.body.appendChild(gameFrame);
+            ColyseusUtils.onDisconnected(code => handleDisconnect(code));
         }
 
         function load(cb) {
@@ -232,6 +250,10 @@
             ColyseusUtils.joinRoom(colyseusPlayerName, roomId).then(() => {
                 loadFrame();
             });
+        }
+
+        function handleDisconnect(code) {
+            location.reload();
         }
     </script>
     <script src="js/bootstrap.bundle.min.js"></script>
