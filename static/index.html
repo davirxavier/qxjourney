@@ -15,7 +15,7 @@
             color: #f8f9fa !important;
         }
 
-        #nameContainer, #reconnectContainer {
+        #nameContainer, #reconnectContainer, #spinnerContainer {
             height: 100vh;
         }
 
@@ -52,6 +52,12 @@
     </style>
 </head>
 <body>
+    <div id="spinnerContainer" class="w-100 d-flex flex-column align-items-center justify-content-center px-5">
+        <div class="spinner-border" role="status">
+            <span class="sr-only"></span>
+        </div>
+    </div>
+
     <div id="reconnectContainer" class="w-100 d-flex flex-column align-items-center justify-content-center px-5">
         <h2 style="font-size: 4vw;" class="fw-bold">QxJourney</h2>
         <span id="reconnectText" class="w-100 text-center" style="font-size: 2vw;">😅😅😅<br>Opa! Parece que você foi desconectado do jogo.</span>
@@ -94,7 +100,17 @@
         const reconnectButton2 = document.getElementById("reconnectButton2");
         const reconnectText = document.getElementById("reconnectText");
         const roomListing = document.getElementById("roomListing");
-        reconnectContainer.style = 'display: none !important;';
+        const spinnerContainer = document.getElementById("spinnerContainer");
+        const createRoom = document.getElementById("createRoom");
+
+        spinnerContainer.style = "display: none !important;"
+        reconnectContainer.style = "display: none !important;";
+
+        function showSpinner(show, toModify) {
+            const style = show ? "display: none !important;" : "";
+            toModify.forEach(e => e.style = style);
+            spinnerContainer.style = show ? "" : "display: none !important;";
+        }
 
         const savedInfo = ColyseusUtils.getSavedInfo();
         if (savedInfo && savedInfo.name) {
@@ -108,8 +124,11 @@
                 nameContainer.style = "display: none !important;";
                 reconnectContainer.style = "";
                 isInit = false;
+                showSpinner(true, [reconnectContainer]);
 
                 load(() => {
+                    showSpinner(false, [reconnectContainer]);
+
                     const onRecError = (e) => {
                         if (e && e.code === ColyseusUtils.errorCodes.ROOM_DELETED) {
                             ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
@@ -122,22 +141,28 @@
                             };
                         }
                         console.error(e);
+                        showSpinner(false, [reconnectContainer]);
                     };
 
                     reconnectButton.onclick = () => {
+                        showSpinner(true, [reconnectContainer]);
                         ColyseusUtils.reconnect(colyseusPlayerName, savedInfo.token)
+                            .then(() => showSpinner(false, [reconnectContainer]))
                             .then(() => loadFrame())
                             .catch((e) => onRecError(e));
                     };
 
                     const onCancel = () => {
-                      ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
-                      location.reload();
+                        ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
+                        showSpinner(false, [reconnectContainer]);
+                        location.reload();
                     };
 
                     reconnectButton2.onclick = () => {
+                        showSpinner(true, [reconnectContainer]);
                         ColyseusUtils.reconnect(colyseusPlayerName, savedInfo.token)
                             .then(() => ColyseusUtils.disconnect())
+                            .then(() => showSpinner(true, [reconnectContainer]))
                             .then(() => onCancel()).catch(e => onCancel());
                     };
                 });
@@ -214,11 +239,13 @@
             };
 
             if (!isInit) {
+                showSpinner(true, [nameContainer]);
                 isInit = true;
                 const url = (window.location.protocol.startsWith('https') ? 'wss://' : 'ws://') + window.location.host +
                     (window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/game')));
                 console.log('Connecting to: '+ url);
                 ColyseusUtils.init(url, name, "teste")
+                    .then(() => showSpinner(false, [nameContainer]))
                     .then(() => {
                         console.log('Connected to server.')
                         document.getElementById('nameContainer').style = 'display: none !important;';
@@ -240,16 +267,20 @@
                 return;
             }
 
+            showSpinner(true, [roomListing, createRoom]);
             ColyseusUtils.createRoomAndJoin(colyseusPlayerName, roomName, max)
                 .then(() => {
+                    showSpinner(false, [roomListing, createRoom]);
                     loadFrame();
-                });
+                }).catch(e => showSpinner(false, [roomListing, createRoom]));
         }
 
         function join(roomId) {
+            showSpinner(true, [roomListing, createRoom]);
             ColyseusUtils.joinRoom(colyseusPlayerName, roomId).then(() => {
+                showSpinner(false, [roomListing, createRoom]);
                 loadFrame();
-            });
+            }).catch(e => showSpinner(false, [roomListing, createRoom]));
         }
 
         function handleDisconnect(code) {
