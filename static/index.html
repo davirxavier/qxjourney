@@ -21,7 +21,7 @@
 
         #roomListing {
             display: none !important;
-            min-height: 70vh;
+            min-height: 60vh;
         }
 
         #roomListing > * {
@@ -161,7 +161,7 @@
             document.getElementById('createRoom').style = 'display: none !important;';
 
             const gameFrame = document.createElement('iframe');
-            gameFrame.style = 'width: 100vw; height: 100vh;';
+            gameFrame.style = 'width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh;';
             gameFrame.src = 'game.html';
 
             document.body.appendChild(gameFrame);

@@ -5,8 +5,6 @@
 var ColyseusUtils = window.parent.ColyseusUtils;
 
 const scriptUrls = [
-    // "js/libs/colyseus.js",
-    // "js/libs/colyseus_utils.js",
     "js/libs/pixi.js",
     "js/libs/pako.min.js",
     "js/libs/localforage.min.js",

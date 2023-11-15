@@ -154,8 +154,14 @@
     }
 
     MathGenerator.gen2 = function () {
-        const op1 = this.randomIntFromInterval(0, 10);
-        const op2 = this.randomIntFromInterval(0, 10);
+        let op1 = this.randomIntFromInterval(0, 10);
+        let op2 = this.randomIntFromInterval(0, 10);
+
+        if (op2 > op1) {
+            const temp = op1;
+            op1 = op2
+            op2 = temp;
+        }
 
         const alternatives = this.genAlternatives(op1-op2);
         return {operands: [op1, '-', op2], result: op1-op2, alternatives: alternatives[0], correctAlternative: alternatives[1]};
@@ -527,12 +533,13 @@
     };
 
     Scene_Battle.prototype.doAction = function (battler, actionKey, skillId, omitEvent, enemy) {
-        BattleManager._currentActor = battler;
-
         let actionDoer = battler;
         if (enemy) {
             actionDoer = enemy;
+            battler.isGuard();
         }
+
+        BattleManager._currentActor = battler;
 
         const actionData = actionsByType[actionKey];
         const action = new Game_Action(actionDoer, true);
@@ -541,7 +548,14 @@
 
         actionDoer._actions = [];
         actionDoer.setAction(0, action);
-        actionDoer.setActionState("waiting");
+
+        if (actionKey === 'g') {
+            actionDoer.setGuarding(true);
+        }
+
+        if (enemy) {
+            action._isEnemyAttack = true;
+        }
 
         setTimeout(() => {
             BattleManager._subject = actionDoer;
@@ -549,9 +563,9 @@
             actionDoer._actions = [];
 
             if (!omitEvent) {
-                ColyseusUtils.broadcastEvent(actionData.event, {skillId, damage});
+                ColyseusUtils.broadcastEvent(actionData.event, {skillId, damage, isGuard: actionKey === 'g'});
             }
-        }, 50);
+        }, 100);
     }
 
     const _Sprite_Battler_update = Sprite_Battler.prototype.update;
@@ -612,6 +626,49 @@
             this._mainSprite.bitmap = ImageManager.loadSvActor(name);
         }
     };
+
+    const _Sprite_Actor_refreshMotion = Sprite_Actor.prototype.refreshMotion;
+    Sprite_Actor.prototype.refreshMotion = function () {
+        _Sprite_Actor_refreshMotion.apply(this, arguments);
+
+        const actor = this._actor;
+        if (actor && actor.isGuardingAnimation()) {
+            this.startMotion("guard");
+        }
+    }
+
+    const _Game_BattlerBase_initMembers = Game_BattlerBase.prototype.initMembers;
+    Game_BattlerBase.prototype.initMembers = function () {
+        _Game_BattlerBase_initMembers.apply(this, arguments);
+        this._isGuarding = false;
+    }
+
+    Game_BattlerBase.prototype.isGuardingAnimation = function () {
+        return this._isGuarding;
+    }
+
+    Game_BattlerBase.prototype.setGuarding = function (guarding) {
+        this._isGuarding = guarding;
+    }
+
+    Game_BattlerBase.prototype.isGuard = function () {
+        return this._isGuarding;
+    }
+
+    const _Game_Action_initialize = Game_Action.prototype.initialize;
+    Game_Action.prototype.initialize = function () {
+        _Game_Action_initialize.apply(this, arguments);
+        this._isEnemyAttack = false;
+    }
+
+    const _Game_Action_apply = Game_Action.prototype.apply;
+    Game_Action.prototype.apply = function () {
+        _Game_Action_apply.apply(this, arguments);
+
+        if (this._isEnemyAttack) {
+            $gameParty.battleMembers().forEach(bm => bm.setGuarding(false));
+        }
+    }
 
     Spriteset_Battle.prototype.createNewActor = function() {
         const sprite = new Sprite_Actor();
