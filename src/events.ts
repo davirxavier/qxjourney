@@ -8,6 +8,7 @@ export const Events = {
     COMBAT_ENDED: 'combat_ended',
     ENEMY_ATTACK: 'enemy_attack',
     JOIN_COMBAT: 'join_combat',
+    UPDATE_HEALTH: 'update_health',
 };
 
 export const PlayerEvents = {

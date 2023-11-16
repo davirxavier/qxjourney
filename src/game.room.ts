@@ -21,7 +21,7 @@ export class Player extends Schema {
     playerSprite = -1;
 
     @type("number")
-    health: number;
+    health = -1;
 
     @type("boolean")
     reconnecting = false;
@@ -117,6 +117,13 @@ export class GameState extends Schema {
         }
     }
 
+    updateHealth(sessionId: string, health: number) {
+        const p = this.players.get(sessionId);
+        if (p) {
+            p.health = health;
+        }
+    }
+
 }
 
 export class GameRoom extends Room<GameState> {
@@ -174,6 +181,10 @@ export class GameRoom extends Room<GameState> {
             this.state.endCombat();
             this.broadcast(Events.COMBAT_ENDED);
         })
+
+        this.onMessage(Events.UPDATE_HEALTH, (client, health: number) => {
+            this.state.updateHealth(client.sessionId, health);
+        });
 
         this.maxClients = parseInt(options.maxPlayers, 10) || 99;
         this.setMetadata({

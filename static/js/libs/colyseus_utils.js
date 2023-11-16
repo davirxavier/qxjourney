@@ -13,7 +13,6 @@ var ColyseusUtils = {
 
     eventTypes: {
         ATTACK_EVENT: 0,
-        GUARD_EVENT: 1,
         COMBAT_STARTED: 2,
         COMBAT_ENDED: 'combat_ended',
         PLAYER_MOVE: 'player_move',
@@ -21,7 +20,8 @@ var ColyseusUtils = {
         PLAYER_EVENT: 'player_event',
         JOINED: 'joined',
         LEFT: 'left',
-        ENEMY_ATTACK: 'enemy_attack'
+        ENEMY_ATTACK: 'enemy_attack',
+        UPDATE_HEALTH: 'update_health',
     },
     errorCodes: {
         DISCONNECTED: 4000,
@@ -187,6 +187,18 @@ var ColyseusUtils = {
             ColyseusUtils.colyseusRoom.state.playersInCombat.includes(ColyseusUtils.colyseusRoom.sessionId);
     },
 
+    sendUpdateHealth: (val) => {
+        ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.UPDATE_HEALTH, val);
+    },
+    onHealthUpdated: (callback) => {
+        if (callback) {
+            ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.UPDATE_HEALTH, (data) => {
+                if (data && data.sender && data.sender !== ColyseusUtils.colyseusRoom.sessionId) {
+                    callback(data.sender, data.health || 0);
+                }
+            });
+        }
+    },
     joinCombat: () => {
       ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.JOIN_COMBAT);
     },

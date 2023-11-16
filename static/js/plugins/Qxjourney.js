@@ -190,7 +190,7 @@
 
         this.checkPlayerLocation();
         DataManager.setupNewGame();
-        $gameSystem.disableMenu();
+        // $gameSystem.disableMenu();
 
         $gameVariables.setValue(uiStorage.variables.playerName49, ColyseusUtils.getCurrentPlayer().name);
         $gameSwitches.setValue(uiStorage.switches.showPlayer49, true);
@@ -245,6 +245,8 @@
         _BattleManager_setup.apply(this, arguments);
 
         this._calledBattleEnded = false;
+        this._actionQueue = [];
+        this._doingActionFromQueue = false;
 
         const enemy = $gameTroop._enemies[0];
         if (ColyseusUtils.hasCombat()) {
@@ -275,6 +277,65 @@
     BattleManager.endBattle = function () {
         _BattleManager_endBattle.apply(this, arguments);
         this.cleanMultiplayer();
+    }
+
+    const _BattleManager_endAction = BattleManager.endAction;
+    BattleManager.endAction = function () {
+        _BattleManager_endAction.apply(this, arguments);
+        this._doingActionFromQueue = false;
+        this.startCustomAction(this._actionQueue.shift(), true);
+    }
+
+    const actionsByType = {
+        a: {
+            event: ColyseusUtils.eventTypes.ATTACK_EVENT,
+            setAction: (action, skillId) => skillId ? action.setSkill(skillId) : action.setAttack(),
+        },
+        g: {
+            event: ColyseusUtils.eventTypes.ATTACK_EVENT,
+            setAction: (action) => action.setGuard(),
+        },
+    };
+
+    BattleManager.startCustomAction = function (actionData, force) {
+        if (!actionData) {
+            return;
+        }
+
+        if (force || !this._doingActionFromQueue) {
+            this._doingActionFromQueue = true;
+            const actionKey = actionData.actionKey;
+            const actionDoer = actionData.actionDoer;
+            const skillId = actionData.skillId;
+            const enemy = actionData.enemy;
+            BattleManager._currentActor = actionData.battler;
+
+            const actionByType = actionsByType[actionKey];
+            const action = new Game_Action(actionDoer, true);
+            actionByType.setAction(action, skillId);
+            const damage = action.makeDamageValue($gameTroop._enemies[0]);
+
+            actionDoer._actions = [];
+            actionDoer.setAction(0, action);
+
+            if (actionKey === 'g') {
+                actionDoer.setGuarding(true);
+            }
+
+            if (enemy) {
+                action._isEnemyAttack = true;
+            }
+
+            BattleManager._subject = actionData.actionDoer;
+            BattleManager.startAction();
+            actionDoer._actions = [];
+
+            if (!actionData.omitEvent) {
+                ColyseusUtils.broadcastEvent(actionByType.event, {skillId: actionData.skillId, damage: damage, isGuard: actionKey === 'g'});
+            }
+        } else {
+            this._actionQueue.push(actionData);
+        }
     }
 
     Game_Action.prototype.isCertainHit = function() {
@@ -372,7 +433,10 @@
             if (event.type === ColyseusUtils.eventTypes.ATTACK_EVENT) {
                 const battlerIndex = ColyseusUtils.getPlayers().findIndex(p => p.sessionId === event.sender);
                 if (battlerIndex >= 0) {
-                    this.doAction($gameParty.battleMembers()[battlerIndex+1], 'a', event.data ? event.data.skillId : undefined, true);
+                    this.doAction($gameParty.battleMembers()[battlerIndex+1],
+                        event.data && event.data.isGuard ? 'g' : 'a',
+                        event.data ? event.data.skillId : undefined,
+                        true);
                 }
             }
         });
@@ -537,51 +601,20 @@
         Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], val));
     }
 
-    const actionsByType = {
-        a: {
-            event: ColyseusUtils.eventTypes.ATTACK_EVENT,
-            setAction: (action, skillId) => skillId ? action.setSkill(skillId) : action.setAttack(),
-        },
-        g: {
-            event: ColyseusUtils.eventTypes.GUARD_EVENT,
-            setAction: (action) => action.setGuard(),
-        },
-    };
-
     Scene_Battle.prototype.doAction = function (battler, actionKey, skillId, omitEvent, enemy) {
         let actionDoer = battler;
         if (enemy) {
             actionDoer = enemy;
-            battler.isGuard();
         }
 
-        BattleManager._currentActor = battler;
-
-        const actionData = actionsByType[actionKey];
-        const action = new Game_Action(actionDoer, true);
-        actionData.setAction(action, skillId);
-        const damage = action.makeDamageValue($gameTroop._enemies[0]);
-
-        actionDoer._actions = [];
-        actionDoer.setAction(0, action);
-
-        if (actionKey === 'g') {
-            actionDoer.setGuarding(true);
-        }
-
-        if (enemy) {
-            action._isEnemyAttack = true;
-        }
-
-        setTimeout(() => {
-            BattleManager._subject = actionDoer;
-            BattleManager.startAction();
-            actionDoer._actions = [];
-
-            if (!omitEvent) {
-                ColyseusUtils.broadcastEvent(actionData.event, {skillId, damage, isGuard: actionKey === 'g'});
-            }
-        }, 100);
+        BattleManager.startCustomAction({
+            actionKey,
+            battler,
+            actionDoer,
+            omitEvent,
+            skillId,
+            enemy: enemy,
+        });
     }
 
     const _Sprite_Battler_update = Sprite_Battler.prototype.update;
@@ -687,20 +720,23 @@
         result.physical = this.isPhysical();
         result.drain = this.isDrain();
         if (result.isHit()) {
-            if (this.item().damage.type > 0) {
-                result.critical = Math.random() < this.itemCri(target);
-                const value = this.makeDamageValue(target, result.critical);
-                this.executeDamage(target, value);
-            }
-            for (const effect of this.item().effects) {
-                this.applyItemEffect(target, effect);
+            if (this.item()) {
+                if (this.item().damage.type > 0) {
+                    result.critical = Math.random() < this.itemCri(target);
+                    const value = this.makeDamageValue(target, result.critical);
+                    this.executeDamage(target, value);
+                }
+                for (const effect of this.item().effects) {
+                    this.applyItemEffect(target, effect);
+                }
             }
             this.applyItemUserEffect(target);
         }
         this.updateLastTarget(target);
 
         if (this._isEnemyAttack) {
-            $gameParty.battleMembers().forEach(bm => bm.setGuarding(false));
+            target.setGuarding(false);
+            ColyseusUtils.sendUpdateHealth($gameParty.allBattleMembers()[0].hp);
         }
     }
 
@@ -741,6 +777,18 @@
     //=============================================================================
     // Player and followers
     //=============================================================================
+
+    // const _Game_Player_initialize = Game_Player.prototype.initialize;
+    // Game_Player.prototype.initialize = function () {
+    //     _Game_Player_initialize.apply(this, arguments);
+    //
+    //     ColyseusUtils.onHealthUpdated((sender, health) => {
+    //         const index = ColyseusUtils.getPlayers().findIndex(p => p.sessionId === sender);
+    //         if (index >= 0 && $gameParty[index]) {
+    //             $gameParty[index].setHp(health);
+    //         }
+    //     });
+    // }
 
     const _Game_Player_initMembers = Game_Player.prototype.initMembers;
     Game_Player.prototype.initMembers = function () {
@@ -844,9 +892,9 @@
 
         ColyseusUtils.getPlayers().forEach(p => this.onPlayerJoined(p));
 
-        this.updateMove();
+        this.updateFollowerInfo();
         ColyseusUtils.onStateChange(() => {
-            this.updateMove();
+            this.updateFollowerInfo();
         });
 
         ColyseusUtils.onPlayerJoined((p) => {
@@ -878,6 +926,18 @@
             }
         });
     };
+
+    Game_Followers.prototype.updateFollowerInfo = function () {
+        const members = $gameParty.allMembers();
+        ColyseusUtils.getPlayers().filter(p => p.health >= 0).forEach((p, i) => {
+            const m = members[i+1];
+            if (m) {
+                m.setHp(p.health);
+            }
+        });
+
+        this.updateMove();
+    }
 
     Game_Followers.prototype.getStartingPos = function () {
         if (!this._startingPosInit && $dataMap && $dataMap.events) {
