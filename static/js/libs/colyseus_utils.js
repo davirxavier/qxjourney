@@ -66,16 +66,20 @@ var ColyseusUtils = {
         });
     },
 
-    saveInfo: (token, name) => {
-      localStorage.setItem('rtoken', JSON.stringify({token, name}));
+    saveInfo: (token, name, inCombat) => {
+      localStorage.setItem('rtoken', JSON.stringify({token, name, isInCombat: !!inCombat}));
     },
     getSavedInfo: () => {
         const token = localStorage.getItem('rtoken');
         return token && token !== 'undefined' ? JSON.parse(token) : undefined;
     },
 
-    leaveRoom: () => {
+    leaveRoom: (consented) => {
         if (ColyseusUtils.colyseusRoom) {
+            if (consented) {
+                ColyseusUtils.saveInfo(undefined, ColyseusUtils.getCurrentPlayer().name, false);
+            }
+
             ColyseusUtils.colyseusRoom.leave(1001);
             ColyseusUtils.colyseusRoom = undefined;
         }
@@ -120,11 +124,15 @@ var ColyseusUtils = {
         ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.PLAYER_MOVE, {map, x, y, isRunning});
     },
 
-    getPlayers: () => {
+    getPlayers: (all) => {
         if (ColyseusUtils.colyseusRoom.state && ColyseusUtils.colyseusRoom.state.players) {
             const ps = [];
             ColyseusUtils.colyseusRoom.state.players.forEach((k, v) => ps.push({...k, sessionId: v}));
-            ps.splice(ps.findIndex(p => p.sessionId === ColyseusUtils.colyseusRoom.sessionId), 1);
+
+            if (!all) {
+                ps.splice(ps.findIndex(p => p.sessionId === ColyseusUtils.colyseusRoom.sessionId), 1);
+            }
+
             ps.sort((p1, p2) => p1.sessionId.localeCompare(p2.sessionId));
             return ps;
         } else {

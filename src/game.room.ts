@@ -40,7 +40,7 @@ export class Combat extends Schema {
     enemyAttackInterval = 0;
 
     @type("number")
-    troopId = 0;
+    troopId = -1;
 
     @type("boolean")
     ongoing = false;
@@ -71,7 +71,6 @@ export class GameState extends Schema {
 
     removePlayer(sessionId: string) {
         this.players.delete(sessionId);
-        this.playersInCombat.splice(this.playersInCombat.indexOf(sessionId), 1);
     }
 
     movePlayer(sessionId: string, movement: {map: number, x: number, y: number, isRunning: boolean}) {
@@ -87,6 +86,7 @@ export class GameState extends Schema {
             this.combat.ongoing = true;
             this.combat.enemyHealth = enemyData.enemyMaxHealth;
             this.combat.enemyAttackInterval = enemyData.enemyAttackInterval;
+            this.combat.troopId = enemyData.troopId;
             this.playersInCombat.clear();
             this.playersInCombat.push(sender);
         }
@@ -96,7 +96,7 @@ export class GameState extends Schema {
         this.combat.ongoing = false;
         this.combat.enemyHealth = 0;
         this.combat.enemyAttackInterval = 0;
-        this.combat.troopId = 0;
+        this.combat.troopId = -1;
     }
 
     attackEnemy(damage: number): boolean {

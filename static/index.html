@@ -152,19 +152,23 @@
                             .catch((e) => onRecError(e));
                     };
 
-                    const onCancel = () => {
-                        ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
-                        showSpinner(false, [reconnectContainer]);
-                        location.reload();
-                    };
+                    if (savedInfo.isInCombat) {
+                        reconnectButton2.style = 'display: none !important;';
+                    } else {
+                        const onCancel = () => {
+                            ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
+                            showSpinner(false, [reconnectContainer]);
+                            location.reload();
+                        };
 
-                    reconnectButton2.onclick = () => {
-                        showSpinner(true, [reconnectContainer]);
-                        ColyseusUtils.reconnect(colyseusPlayerName, savedInfo.token)
-                            .then(() => ColyseusUtils.disconnect())
-                            .then(() => showSpinner(true, [reconnectContainer]))
-                            .then(() => onCancel()).catch(e => onCancel());
-                    };
+                        reconnectButton2.onclick = () => {
+                            showSpinner(true, [reconnectContainer]);
+                            ColyseusUtils.reconnect(colyseusPlayerName, savedInfo.token)
+                                .then(() => ColyseusUtils.disconnect())
+                                .then(() => showSpinner(true, [reconnectContainer]))
+                                .then(() => onCancel()).catch(e => onCancel());
+                        };
+                    }
                 });
             }
         }

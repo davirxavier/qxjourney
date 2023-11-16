@@ -190,7 +190,7 @@
 
         this.checkPlayerLocation();
         DataManager.setupNewGame();
-        // $gameSystem.disableMenu();
+        $gameSystem.disableMenu();
 
         $gameVariables.setValue(uiStorage.variables.playerName49, ColyseusUtils.getCurrentPlayer().name);
         $gameSwitches.setValue(uiStorage.switches.showPlayer49, true);
@@ -206,17 +206,36 @@
             }
         }
 
-        if (ColyseusUtils.hasCombat() && ColyseusUtils.isCurrentPlayerInCombat()) {
-            new Game_Interpreter().command301([0, ColyseusUtils.getCombatTroopId(), false, false]);
-        } else {
-            SceneManager.goto(Scene_Map);
-        }
+        SceneManager.goto(Scene_Map);
     };
+
+    const _SceneManager_onSceneStart = SceneManager.onSceneStart;
+    SceneManager.onSceneStart = function () {
+        _SceneManager_onSceneStart.apply(this, arguments);
+
+        $gamePlayer._followers.updateFollowerInfo();
+        if (!this._setUpdateFollowerCallback) {
+            ColyseusUtils.onStateChange(() => {
+                $gamePlayer._followers.updateFollowerInfo();
+            });
+
+            this._setUpdateFollowerCallback = true;
+        }
+
+        if (SceneManager._scene instanceof Scene_Map &&
+            ColyseusUtils.hasCombat() && ColyseusUtils.isCurrentPlayerInCombat()) {
+            const troopId = ColyseusUtils.getCombatTroopId();
+            if (troopId !== -1) {
+                BattleManager.setup(ColyseusUtils.getCombatTroopId(), false, false);
+                $gamePlayer.makeEncounterCount();
+                SceneManager.push(Scene_Battle);
+            }
+        }
+    }
 
     Scene_Gameover.prototype.update = function() {
         if (this.isActive() && !this.isBusy() && this.isTriggered()) {
-            DataManager.setupNewGame();
-            SceneManager.goto(Scene_Map);
+            ColyseusUtils.leaveRoom(true);
         }
         Scene_Base.prototype.update.call(this);
     };
@@ -226,13 +245,6 @@
     };
 
     SceneManager.isGameActive = function() {
-        // [Note] We use "window.top" to support an iframe.
-        // try {
-        //     return window.top.document.hasFocus();
-        // } catch (e) {
-        //     // SecurityError
-        //     return true;
-        // }
         return true;
     };
 
@@ -241,7 +253,7 @@
     //=============================================================================
 
     const _BattleManager_setup = BattleManager.setup;
-    BattleManager.setup = function () {
+    BattleManager.setup = function (troopId) {
         _BattleManager_setup.apply(this, arguments);
 
         this._calledBattleEnded = false;
@@ -254,18 +266,25 @@
             enemy.setHp(health);
             ColyseusUtils.joinCombat();
         } else {
-            ColyseusUtils.broadcastEvent(ColyseusUtils.eventTypes.COMBAT_STARTED, {enemyMaxHealth: enemy.hp, enemyAttackInterval: enemy._colyseusAttackInterval});
+            ColyseusUtils.broadcastEvent(ColyseusUtils.eventTypes.COMBAT_STARTED, {enemyMaxHealth: enemy.hp, enemyAttackInterval: enemy._colyseusAttackInterval, troopId});
         }
+        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, ColyseusUtils.getCurrentPlayer().name, true);
     }
 
     BattleManager.cleanMultiplayer = function () {
         ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.JOIN_COMBAT);
         ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.PLAYER_EVENT);
         ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.ENEMY_ATTACK);
+        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, ColyseusUtils.getCurrentPlayer().name, false);
 
         for (let i = 0; i < 49; i++) {
             $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false);
         }
+
+        $gameParty.allMembers().forEach(m => {
+            m.revive();
+            m.gainHp(9999999);
+        });
 
         if (!this._calledBattleEnded) {
             ColyseusUtils.sendCombatEnded();
@@ -446,7 +465,7 @@
                 const enemy = $gameTroop._enemies[0];
                 this.doAction($gameParty.battleMembers()[0], 'a', isSpecial ? enemy._colyseusSpecialAttack : 240, true, enemy);
 
-                if (this._currentRechargingActionType === 'g') {
+                if (this._currentRechargingActionType === 'g' && !this._isAnsweringMath) {
                     [this._attackButton, this._guardButton, this._specialButton].forEach(b => b.visible = true);
                 }
             }
@@ -497,6 +516,7 @@
                     Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], false));
                 }
 
+                this._isAnsweringMath = false;
                 this._answeredCorrectly = false;
                 this._answered = false;
             }
@@ -736,7 +756,7 @@
 
         if (this._isEnemyAttack) {
             target.setGuarding(false);
-            ColyseusUtils.sendUpdateHealth($gameParty.allBattleMembers()[0].hp);
+            ColyseusUtils.sendUpdateHealth($gameParty.allMembers()[0].hp);
         }
     }
 
@@ -892,11 +912,6 @@
 
         ColyseusUtils.getPlayers().forEach(p => this.onPlayerJoined(p));
 
-        this.updateFollowerInfo();
-        ColyseusUtils.onStateChange(() => {
-            this.updateFollowerInfo();
-        });
-
         ColyseusUtils.onPlayerJoined((p) => {
             if (p) {
                 const follower = this.getBySessionId(p.sessionId);
@@ -931,10 +946,14 @@
         const members = $gameParty.allMembers();
         ColyseusUtils.getPlayers().filter(p => p.health >= 0).forEach((p, i) => {
             const m = members[i+1];
-            if (m) {
+            if (m && p.hp !== -1) {
                 m.setHp(p.health);
             }
         });
+        const currPlayer = ColyseusUtils.getCurrentPlayer();
+        if (currPlayer && currPlayer.health !== -1) {
+            members[0].setHp(currPlayer.health);
+        }
 
         this.updateMove();
     }
