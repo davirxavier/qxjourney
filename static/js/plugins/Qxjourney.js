@@ -182,6 +182,7 @@
     //=============================================================================
 
     Scene_Boot.prototype.startNormalGame = function() {
+        this._transferred = false;
         const currentPlayer = ColyseusUtils.getCurrentPlayer();
         if (currentPlayer.x !== -1 && currentPlayer.y !== -1) {
             $dataSystem.startX = currentPlayer.x;
@@ -214,12 +215,21 @@
         _SceneManager_onSceneStart.apply(this, arguments);
 
         $gamePlayer._followers.updateFollowerInfo();
-        if (!this._setUpdateFollowerCallback) {
-            ColyseusUtils.onStateChange(() => {
+        if (!this._registerCallbacks) {
+            ColyseusUtils.onPlayerMovement(() => {
                 $gamePlayer._followers.updateFollowerInfo();
             });
+            ColyseusUtils.onGameVariablesChanged((event) => {
+                if (event && event.data && event.data.isVariable) {
+                    $gameVariables.setValue(event.data.id, event.data.value);
+                    $gameVariables.onChange();
+                } else if (event && event.data && !event.data.isVariable) {
+                    $gameSwitches.setValue(event.data.id, !!event.data.value);
+                    $gameSwitches.onChange();
+                }
+            });
 
-            this._setUpdateFollowerCallback = true;
+            this._registerCallbacks = true;
         }
 
         if (SceneManager._scene instanceof Scene_Map &&
@@ -230,6 +240,38 @@
                 $gamePlayer.makeEncounterCount();
                 SceneManager.push(Scene_Battle);
             }
+        }
+
+        if (ColyseusUtils.debugMap && !this._transferred) {
+            this._transferred = true;
+            $gamePlayer.reserveTransfer(ColyseusUtils.debugMap, 0, 0, 0, 0);
+            let interval = setInterval(() => {
+                if (!$gamePlayer.isTransferring()) {
+                    const spawn = DataManager.getEventByName('SPAWN');
+                    if (spawn) {
+                        $gamePlayer.locate(spawn.x, spawn.y);
+                    }
+                    clearInterval(interval);
+                }
+            }, 50);
+        }
+    }
+
+    const _Game_Switches_setValue = Game_Switches.prototype.setValue;
+    Game_Switches.prototype.setValue = function (switchId, value) {
+        _Game_Switches_setValue.apply(this, arguments);
+
+        if (switchId > 0 && switchId < $dataSystem.switches.length) {
+            ColyseusUtils.sendGameVariableChanged(switchId, value, false);
+        }
+    }
+
+    const _Game_Variables_setValue = Game_Variables.prototype.setValue;
+    Game_Variables.prototype.setValue = function (variableId, value) {
+        _Game_Variables_setValue.apply(this, arguments);
+
+        if (variableId > 0 && variableId < $dataSystem.variables.length) {
+            ColyseusUtils.sendGameVariableChanged(variableId, value, true);
         }
     }
 

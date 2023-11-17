@@ -16,3 +16,9 @@ export class CombatStartedEvent extends PartialClass<CombatStartedEvent> {
     enemyAttackInterval: number;
     troopId: number;
 }
+
+export class GameSwitchVariableEvent extends PartialClass<GameSwitchVariableEvent> {
+    id: number;
+    isVariable: boolean;
+    value: string | boolean;
+}

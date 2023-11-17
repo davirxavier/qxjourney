@@ -1,7 +1,7 @@
 import {ArraySchema, MapSchema, Schema, type} from "@colyseus/schema";
 import {Client, Delayed, Room, updateLobby} from "colyseus";
 import {Events, PlayerEvents} from "./events";
-import {AttackEvent, CombatStartedEvent} from "./interfaces";
+import {AttackEvent, CombatStartedEvent, GameSwitchVariableEvent} from "./interfaces";
 
 export class Player extends Schema {
 
@@ -57,6 +57,12 @@ export class GameState extends Schema {
 
     @type({array: 'string'})
     playersInCombat = new ArraySchema<string>();
+
+    @type({map: 'boolean'})
+    gameSwitches = new MapSchema<boolean>();
+
+    @type({map: 'string'})
+    gameVariables = new MapSchema<string>();
 
     createPlayer(sessionId: string, config: string) {
         const p = new Player();
@@ -124,6 +130,14 @@ export class GameState extends Schema {
         }
     }
 
+    setSwitchOrVar(data: GameSwitchVariableEvent) {
+        if (data.isVariable && typeof data.value === 'string') {
+            this.gameVariables.set(data.id.toString(), data.value);
+        } else if (typeof data.value === 'boolean') {
+            this.gameSwitches.set(data.id.toString(), data.value);
+        }
+    }
+
 }
 
 export class GameRoom extends Room<GameState> {
@@ -184,6 +198,13 @@ export class GameRoom extends Room<GameState> {
 
         this.onMessage(Events.UPDATE_HEALTH, (client, health: number) => {
             this.state.updateHealth(client.sessionId, health);
+        });
+
+        this.onMessage(Events.GAME_SV_CHANGE, (client, data: GameSwitchVariableEvent) => {
+            if (data && data.id) {
+                this.state.setSwitchOrVar(data);
+                this.broadcast(Events.GAME_SV_CHANGE, {sender: client.sessionId, data: data});
+            }
         });
 
         this.maxClients = parseInt(options.maxPlayers, 10) || 99;

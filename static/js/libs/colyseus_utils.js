@@ -22,6 +22,12 @@ var ColyseusUtils = {
         LEFT: 'left',
         ENEMY_ATTACK: 'enemy_attack',
         UPDATE_HEALTH: 'update_health',
+        GAME_SV_CHANGE: 'game_sv_change',
+    },
+    stateChangePaths: {
+        PLAYERS: 'players',
+        VARIABLES: 'gameSwitches',
+        SWITCHES: 'gameVariables',
     },
     errorCodes: {
         DISCONNECTED: 4000,
@@ -220,9 +226,6 @@ var ColyseusUtils = {
     broadcastEvent: (type, data) => {
         ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.PLAYER_EVENT, {type, data, sender: ColyseusUtils.colyseusRoom.sessionId});
     },
-    onStateChange: (callback) => {
-        ColyseusUtils.colyseusRoom.onStateChange(callback);
-    },
     onPlayerJoined: (callback) => {
         ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.JOINED, callback);
     },
@@ -236,6 +239,23 @@ var ColyseusUtils = {
                   callback(event);
               }
           });
+        }
+    },
+    onPlayerMovement: (callback) => {
+        if (callback) {
+            ColyseusUtils.colyseusRoom.onStateChange(callback);
+        }
+    },
+    sendGameVariableChanged: (id, value, isVariable) => {
+        ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.GAME_SV_CHANGE, {id, value, isVariable});
+    },
+    onGameVariablesChanged: (callback) => {
+        if (callback) {
+            ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.GAME_SV_CHANGE, (event) => {
+                if (event && event.sender && event.sender !== ColyseusUtils.colyseusRoom.sessionId) {
+                    callback(event);
+                }
+            });
         }
     },
     onEnemyAttack: (callback) => {
