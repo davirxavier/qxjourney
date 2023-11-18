@@ -193,17 +193,17 @@
         DataManager.setupNewGame();
         $gameSystem.disableMenu();
 
-        $gameVariables.setValue(uiStorage.variables.playerName49, ColyseusUtils.getCurrentPlayer().name);
-        $gameSwitches.setValue(uiStorage.switches.showPlayer49, true);
+        $gameVariables.setValue(uiStorage.variables.playerName49, ColyseusUtils.getCurrentPlayer().name, true);
+        $gameSwitches.setValue(uiStorage.switches.showPlayer49, true, true);
 
         for (let i = 0; i < 50; i++) {
-            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false);
+            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false, true);
         }
-        $gameSwitches.setValue(uiStorage.switches.showPlayerCombat49, true);
+        $gameSwitches.setValue(uiStorage.switches.showPlayerCombat49, true, true);
 
         if (ColyseusUtils.debugMode) {
             for (let i = 0; i < 25; i++) {
-                $gameSwitches.setValue(uiStorage.switches.showPlayer0+i, true);
+                $gameSwitches.setValue(uiStorage.switches.showPlayer0+i, true, true);
             }
         }
 
@@ -221,11 +221,24 @@
             });
             ColyseusUtils.onGameVariablesChanged((event) => {
                 if (event && event.data && event.data.isVariable) {
-                    $gameVariables.setValue(event.data.id, event.data.value);
+                    $gameVariables.setValue(event.data.id, event.data.value, true);
                     $gameVariables.onChange();
                 } else if (event && event.data && !event.data.isVariable) {
-                    $gameSwitches.setValue(event.data.id, !!event.data.value);
+                    $gameSwitches.setValue(event.data.id, !!event.data.value, true);
                     $gameSwitches.onChange();
+                }
+            });
+
+            $gameParty.allMembers()[0].setName(ColyseusUtils.getCurrentPlayer().name);
+            ColyseusUtils.getPlayers().forEach(p => $gamePlayer._followers.onPlayerJoined(p));
+            ColyseusUtils.onPlayerJoined((p) => {
+                if (p) {
+                    const follower = $gamePlayer._followers.getBySessionId(p.sessionId);
+                    if (follower) {
+                        // TODO do
+                    } else {
+                        $gamePlayer._followers.onPlayerJoined(p);
+                    }
                 }
             });
 
@@ -258,19 +271,19 @@
     }
 
     const _Game_Switches_setValue = Game_Switches.prototype.setValue;
-    Game_Switches.prototype.setValue = function (switchId, value) {
+    Game_Switches.prototype.setValue = function (switchId, value, omitEvent) {
         _Game_Switches_setValue.apply(this, arguments);
 
-        if (switchId > 0 && switchId < $dataSystem.switches.length) {
+        if (!omitEvent && switchId > 0 && switchId < $dataSystem.switches.length) {
             ColyseusUtils.sendGameVariableChanged(switchId, value, false);
         }
     }
 
     const _Game_Variables_setValue = Game_Variables.prototype.setValue;
-    Game_Variables.prototype.setValue = function (variableId, value) {
+    Game_Variables.prototype.setValue = function (variableId, value, omitEvent) {
         _Game_Variables_setValue.apply(this, arguments);
 
-        if (variableId > 0 && variableId < $dataSystem.variables.length) {
+        if (!omitEvent && variableId > 0 && variableId < $dataSystem.variables.length) {
             ColyseusUtils.sendGameVariableChanged(variableId, value, true);
         }
     }
@@ -320,12 +333,13 @@
         ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, ColyseusUtils.getCurrentPlayer().name, false);
 
         for (let i = 0; i < 49; i++) {
-            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false);
+            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false, true);
         }
 
         $gameParty.allMembers().forEach(m => {
             m.revive();
-            m.gainHp(9999999);
+            m.setHp(9999999);
+            ColyseusUtils.sendUpdateHealth(9999999);
         });
 
         if (!this._calledBattleEnded) {
@@ -466,10 +480,10 @@
         _Scene_Battle_createSpriteset.apply(this, arguments);
 
         let spritesSliced = this._spriteset._actorSprites.slice(1);
-        $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 100);
+        $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 100, true);
 
         for (let i = 0; i < ColyseusUtils.inCombatPlayerCount()-1; i++) {
-            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, true);
+            $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, true, true);
         }
 
         ColyseusUtils.onPlayerLeft((sess) => {
@@ -477,7 +491,7 @@
             if (index >= 0) {
                 this._spriteset.removeActor(index);
                 spritesSliced = this._spriteset._actorSprites.slice(1);
-                $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+index, false);
+                $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+index, false, true);
             }
         });
 
@@ -486,7 +500,7 @@
             if (index >= 0) {
                 this._spriteset.createNewActor();
                 spritesSliced = this._spriteset._actorSprites.slice(1);
-                $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+ColyseusUtils.getPlayers().findIndex(p2 => p2.sessionId === sessionId), true);
+                $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+ColyseusUtils.getPlayers().findIndex(p2 => p2.sessionId === sessionId), true, true);
             }
         });
 
@@ -542,11 +556,11 @@
 
         if (this._isAnsweringMath) {
             this._mathAnswerVal -= 1.66 / ColyseusUtils.questionSolveSeconds;
-            $gameVariables.setValue(uiStorage.variables.questionGaugeValue, this._mathAnswerVal);
+            $gameVariables.setValue(uiStorage.variables.questionGaugeValue, this._mathAnswerVal, true);
 
             if (this._mathAnswerVal <= 0 || this._answered) {
-                $gameSwitches.setValue(uiStorage.switches.answersShow, false);
-                $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 100);
+                $gameSwitches.setValue(uiStorage.switches.answersShow, false, true);
+                $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 100, true);
 
                 if (this._currentRechargingActionType !== 'g') {
                     [this._attackButton, this._guardButton, this._specialButton].forEach(b => b.visible = true);
@@ -555,7 +569,7 @@
                 if (this._answeredCorrectly) {
                     this.doAction($gameParty.battleMembers()[0], this._currentRechargingActionType, this._currentRechargingSkillId);
                 } else {
-                    Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], false));
+                    Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], false, true));
                 }
 
                 this._isAnsweringMath = false;
@@ -610,7 +624,7 @@
             if (type !== 'g') {
                 this.setRechargingActions(true, type);
             }
-            $gameSwitches.setValue(uiStorage.switches.answersShow, true);
+            $gameSwitches.setValue(uiStorage.switches.answersShow, true, true);
 
             let mathOperation;
             if (type === 'a' && skillId) {
@@ -621,11 +635,11 @@
                 mathOperation = MathGenerator.gen2();
             }
 
-            $gameVariables.setValue(uiStorage.variables.questionText, mathOperation.operands.join(' '));
-            $gameVariables.setValue(uiStorage.variables.answerText0, mathOperation.alternatives[0]);
-            $gameVariables.setValue(uiStorage.variables.answerText1, mathOperation.alternatives[1]);
-            $gameVariables.setValue(uiStorage.variables.answerText2, mathOperation.alternatives[2]);
-            $gameVariables.setValue(uiStorage.variables.answerText3, mathOperation.alternatives[3]);
+            $gameVariables.setValue(uiStorage.variables.questionText, mathOperation.operands.join(' '), true);
+            $gameVariables.setValue(uiStorage.variables.answerText0, mathOperation.alternatives[0], true);
+            $gameVariables.setValue(uiStorage.variables.answerText1, mathOperation.alternatives[1], true);
+            $gameVariables.setValue(uiStorage.variables.answerText2, mathOperation.alternatives[2], true);
+            $gameVariables.setValue(uiStorage.variables.answerText3, mathOperation.alternatives[3], true);
 
             this._attackButton.visible = false;
             this._guardButton.visible = false;
@@ -633,7 +647,7 @@
 
             this._isAnsweringMath = true;
             this._mathAnswerVal = 110;
-            $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 110);
+            $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 110, true);
             this._answeredCorrectly = false;
             this._answered = false;
 
@@ -660,7 +674,7 @@
 
     Scene_Battle.prototype.setRechargingActions = function (val, type) {
         this._isRechargingButtons = val;
-        Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], val));
+        Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], val, true));
     }
 
     Scene_Battle.prototype.doAction = function (battler, actionKey, skillId, omitEvent, enemy) {
@@ -840,17 +854,17 @@
     // Player and followers
     //=============================================================================
 
-    // const _Game_Player_initialize = Game_Player.prototype.initialize;
-    // Game_Player.prototype.initialize = function () {
-    //     _Game_Player_initialize.apply(this, arguments);
-    //
-    //     ColyseusUtils.onHealthUpdated((sender, health) => {
-    //         const index = ColyseusUtils.getPlayers().findIndex(p => p.sessionId === sender);
-    //         if (index >= 0 && $gameParty[index]) {
-    //             $gameParty[index].setHp(health);
-    //         }
-    //     });
-    // }
+    const _Game_Player_initialize = Game_Player.prototype.initialize;
+    Game_Player.prototype.initialize = function () {
+        _Game_Player_initialize.apply(this, arguments);
+
+        ColyseusUtils.onHealthUpdated((sender, health) => {
+            const index = ColyseusUtils.getPlayers().findIndex(p => p.sessionId === sender);
+            if (index >= 0 && $gameParty[index]) {
+                $gameParty[index].setHp(health);
+            }
+        });
+    }
 
     const _Game_Player_initMembers = Game_Player.prototype.initMembers;
     Game_Player.prototype.initMembers = function () {
@@ -952,19 +966,6 @@
             this._data.push(newFollower);
         }
 
-        ColyseusUtils.getPlayers().forEach(p => this.onPlayerJoined(p));
-
-        ColyseusUtils.onPlayerJoined((p) => {
-            if (p) {
-                const follower = this.getBySessionId(p.sessionId);
-                if (follower) {
-                    // TODO do
-                } else {
-                    this.onPlayerJoined(p);
-                }
-            }
-        });
-
         ColyseusUtils.onPlayerLeft((sessionId) => {
             const follower = this.getBySessionId(sessionId);
             if (follower) {
@@ -973,7 +974,7 @@
                 follower.setCustomChar("", 0);
 
                 const followerIndex = this._data.findIndex(f => f === follower);
-                $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, false);
+                $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, false, true);
 
                 this._playerMap[sessionId] = undefined;
                 delete this._playerMap[sessionId];
@@ -1019,8 +1020,14 @@
         follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
         follower.setCustomChar("Actor1", p.playerSprite);
 
-        $gameVariables.setValue(uiStorage.variables.playerName0 + followerIndex, p.name);
-        $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, true);
+        $gameVariables.setValue(uiStorage.variables.playerName0 + followerIndex, p.name, true);
+        $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, true, true);
+
+        const playerIndex = ColyseusUtils.getPlayers().findIndex(pp => pp.sessionId === p.sessionId)+1;
+        console.log($gameParty.allMembers())
+        if (playerIndex >= 0) {
+            $gameParty.allMembers()[playerIndex].setName(p.name);
+        }
 
         this._playerMap[p.sessionId] = follower;
     };
@@ -1276,13 +1283,13 @@
     const exports = window;
 
     exports.setMessage = function(message) {
-        $gameSwitches.setValue(501, true);
-        $gameVariables.setValue(501, message);
+        $gameSwitches.setValue(501, true, true);
+        $gameVariables.setValue(501, message, true);
     }
 
     exports.clearMessage = function () {
-        $gameSwitches.setValue(501, false);
-        $gameVariables.setValue(501, "");
+        $gameSwitches.setValue(501, false, true);
+        $gameVariables.setValue(501, "", true);
     }
 
     exports.MathGenerator = MathGenerator;
