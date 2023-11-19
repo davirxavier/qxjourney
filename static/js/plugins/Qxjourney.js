@@ -135,10 +135,10 @@
         const ret = [];
         for (let i = 0; i < 4; i++) {
             let counter = 0;
-            let random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result)*2);
+            let random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result)*(ColyseusUtils.difficulty+1));
             while ((random === result || ret.includes(random)) && counter < 1000) {
                 counter++;
-                random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result)*2);
+                random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result)*((ColyseusUtils.difficulty+1)));
             }
             ret.push(random);
         }
@@ -147,17 +147,23 @@
         return [ret, resultIndex];
     }
 
+    MathGenerator.makeMaxNumber = function () {
+        return ColyseusUtils.difficulty + 2;
+    }
+
     MathGenerator.gen1 = function () {
-        const op1 = this.randomIntFromInterval(0, 10);
-        const op2 = this.randomIntFromInterval(0, 10);
+        const max = this.makeMaxNumber();
+        const op1 = this.randomIntFromInterval(0, max);
+        const op2 = this.randomIntFromInterval(0, max);
 
         const alternatives = this.genAlternatives(op1+op2);
         return {operands: [op1, '+', op2], result: op1+op2, alternatives: alternatives[0], correctAlternative: alternatives[1]};
     }
 
     MathGenerator.gen2 = function () {
-        let op1 = this.randomIntFromInterval(0, 10);
-        let op2 = this.randomIntFromInterval(0, 10);
+        const max = this.makeMaxNumber();
+        let op1 = this.randomIntFromInterval(0, max);
+        let op2 = this.randomIntFromInterval(0, max);
 
         if (op2 > op1) {
             const temp = op1;
@@ -170,8 +176,9 @@
     }
 
     MathGenerator.gen3 = function () {
-        const op1 = this.randomIntFromInterval(0, 10);
-        const op2 = this.randomIntFromInterval(0, 10);
+        const max = this.makeMaxNumber();
+        const op1 = this.randomIntFromInterval(0, max);
+        const op2 = this.randomIntFromInterval(0, max);
 
         const alternatives = this.genAlternatives(op1*op2);
         return {operands: [op1, '*', op2], result: op1*op2, alternatives: alternatives[0], correctAlternative: alternatives[1]};
@@ -519,7 +526,8 @@
         ColyseusUtils.onEnemyAttack((isSpecial) => {
             if (ColyseusUtils.getCurrentEnemyHealth() > 0) {
                 const enemy = $gameTroop._enemies[0];
-                this.doAction($gameParty.battleMembers()[0], 'a', isSpecial ? enemy._colyseusSpecialAttack : 240, true, enemy);
+                const attack = enemy.meta && enemy.meta.BasicAttack && parseInt(enemy.meta.BasicAttack) ? parseInt(enemy.meta.BasicAttack) : 239;
+                this.doAction($gameParty.battleMembers()[0], 'a', isSpecial ? enemy._colyseusSpecialAttack : attack, true, enemy);
 
                 if (this._currentRechargingActionType === 'g' && !this._isAnsweringMath) {
                     [this._attackButton, this._guardButton, this._specialButton].forEach(b => b.visible = true);
@@ -562,14 +570,16 @@
                 $gameSwitches.setValue(uiStorage.switches.answersShow, false, true);
                 $gameVariables.setValue(uiStorage.variables.questionGaugeValue, 100, true);
 
+                const btns = [this._attackButton, this._guardButton, this._specialButton];
                 if (this._currentRechargingActionType !== 'g') {
-                    [this._attackButton, this._guardButton, this._specialButton].forEach(b => b.visible = true);
+                    btns.forEach(b => b.visible = true);
                 }
 
                 if (this._answeredCorrectly) {
                     this.doAction($gameParty.battleMembers()[0], this._currentRechargingActionType, this._currentRechargingSkillId);
                 } else {
-                    Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], false, true));
+                    btns.forEach(b => b.visible = true);
+                    this.setRechargingActions(true, this._currentRechargingActionType);
                 }
 
                 this._isAnsweringMath = false;

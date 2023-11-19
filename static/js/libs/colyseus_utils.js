@@ -8,6 +8,7 @@ var ColyseusUtils = {
     questionSolveSeconds: 10,
     attackDamage: 10,
     specialDamage: 50,
+    difficulty: 0,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
     debugMode: false,
 
