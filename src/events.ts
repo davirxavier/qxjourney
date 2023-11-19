@@ -16,4 +16,5 @@ export const PlayerEvents = {
     ATTACK: 0,
     GUARD: 1,
     COMBAT_STARTED: 2,
+    GAME_OVER: 1501,
 };

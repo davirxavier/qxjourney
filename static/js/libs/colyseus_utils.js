@@ -8,6 +8,7 @@ var ColyseusUtils = {
     questionSolveSeconds: 10,
     attackDamage: 10,
     specialDamage: 50,
+    forceDifficulty: undefined,
     difficulty: 0,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
     debugMode: false,
@@ -182,9 +183,9 @@ var ColyseusUtils = {
         const curr = ColyseusUtils.getCurrentCombat();
         return curr ? curr.troopId : -1;
     },
-    getCurrentEnemyHealth: () => {
+    getEnemyHealthArr: () => {
         const curr = ColyseusUtils.getCurrentCombat();
-        return curr ? curr.enemyHealth : -1;
+        return curr ? curr.enemies.map(e => e.enemyHealth) : [];
     },
 
     isPlayerInCombat: (index) => {
@@ -221,8 +222,8 @@ var ColyseusUtils = {
       ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.JOIN_COMBAT,
           (sessionId) => ColyseusUtils.colyseusRoom.sessionId !== sessionId && callback ? callback(sessionId) : undefined);
     },
-    sendCombatEnded: () => {
-        ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.COMBAT_ENDED);
+    sendCombatEnded: (won) => {
+        ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.COMBAT_ENDED, won);
     },
     broadcastEvent: (type, data) => {
         ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.PLAYER_EVENT, {type, data, sender: ColyseusUtils.colyseusRoom.sessionId});
@@ -262,8 +263,7 @@ var ColyseusUtils = {
     onEnemyAttack: (callback) => {
         if (callback) {
             ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.ENEMY_ATTACK, (event) => {
-                const isSpecial = event && event.isSpecial;
-                callback(isSpecial);
+                callback(event);
             });
         }
     },

@@ -2,6 +2,7 @@ import {ArraySchema, MapSchema, Schema, type} from "@colyseus/schema";
 import {Client, Delayed, Room, updateLobby} from "colyseus";
 import {Events, PlayerEvents} from "./events";
 import {AttackEvent, CombatStartedEvent, GameSwitchVariableEvent} from "./interfaces";
+import {randomIntFromInterval} from "./utils";
 
 export class Player extends Schema {
 
@@ -31,13 +32,33 @@ export class Player extends Schema {
 
 }
 
-export class Combat extends Schema {
+export class Enemy extends Schema {
 
     @type("number")
     enemyHealth = 0;
 
     @type("number")
     enemyAttackInterval = 0;
+
+    @type({array: 'number'})
+    basicAttacks = new ArraySchema<number>();
+
+    @type({array: 'number'})
+    specials = new ArraySchema<number>();
+
+    constructor(initial?: Partial<Enemy>) {
+        super();
+        if (initial) {
+            Object.assign(this, initial);
+        }
+    }
+
+}
+
+export class Combat extends Schema {
+
+    @type({array: Enemy})
+    enemies = new ArraySchema<Enemy>();
 
     @type("number")
     troopId = -1;
@@ -90,8 +111,17 @@ export class GameState extends Schema {
     startCombat(enemyData: CombatStartedEvent, sender: string) {
         if (!this.combat.ongoing) {
             this.combat.ongoing = true;
-            this.combat.enemyHealth = enemyData.enemyMaxHealth;
-            this.combat.enemyAttackInterval = enemyData.enemyAttackInterval;
+
+            this.combat.enemies.clear();
+            enemyData.enemies.forEach(e => {
+                const enemy = new Enemy();
+                enemy.enemyHealth = e.enemyMaxHealth;
+                enemy.enemyAttackInterval = e.enemyAttackInterval;
+                enemy.basicAttacks.push(...e.basicAttacks);
+                enemy.specials.push(...e.specials);
+                this.combat.enemies.push(enemy);
+            });
+
             this.combat.troopId = enemyData.troopId;
             this.playersInCombat.clear();
             this.playersInCombat.push(sender);
@@ -100,19 +130,16 @@ export class GameState extends Schema {
 
     endCombat() {
         this.combat.ongoing = false;
-        this.combat.enemyHealth = 0;
-        this.combat.enemyAttackInterval = 0;
+        this.combat.enemies.clear();
         this.combat.troopId = -1;
     }
 
     attackEnemy(damage: number): boolean {
         if (this.combat.ongoing) {
-            this.combat.enemyHealth -= Math.abs(damage);
-            if (this.combat.enemyHealth <= 0) {
-                this.combat.enemyHealth = 0;
-                return true;
-            }
-            return false;
+            this.combat.enemies.forEach(e => {
+                e.enemyHealth -= Math.abs(damage);
+            });
+            return this.combat.enemies.every(e => e.enemyHealth <= 0);
         }
         return false;
     }
@@ -149,7 +176,7 @@ export class GameRoom extends Room<GameState> {
         this.onMessage(Events.PLAYER_MOVE, (client, message) => {
             this.state.movePlayer(client.sessionId, message);
         });
-        let enemyAttackInterval: Delayed;
+        let enemyAttackInterval: Delayed[];
 
         this.onMessage('player_event', (eventClient, message: {type: number, data: any, sender: string}) => {
             if (message && message.type === PlayerEvents.ATTACK) {
@@ -157,29 +184,40 @@ export class GameRoom extends Room<GameState> {
                 if (data.damage) {
                     if (this.state.attackEnemy(data.damage)) {
                         if (enemyAttackInterval) {
-                            enemyAttackInterval.clear();
+                            enemyAttackInterval.forEach(i => i.clear());
                         }
                     }
                 }
             } else if (message && message.type === PlayerEvents.COMBAT_STARTED) {
                 const data = new CombatStartedEvent(message.data);
-                if (data.enemyMaxHealth) {
+                if (data.enemies && data.enemies.length > 0) {
                     this.state.startCombat(data, message.sender);
+                    enemyAttackInterval = [];
 
-                    const interval = parseInt(data.enemyAttackInterval as any, 10) || 0;
-                    if (interval > 0) {
-                        this.clock.setTimeout(() => {
+                    this.state.combat.enemies.forEach((e, i) => {
+                        const interval = parseInt(e.enemyAttackInterval as any, 10) || 0;
+                        if (interval > 0) {
                             let specialCounter = 0;
-                            enemyAttackInterval = this.clock.setInterval(() => {
-                                if (this.state.combat.ongoing && this.state.combat.enemyHealth > 0) {
-                                    this.broadcast(Events.ENEMY_ATTACK, {isSpecial: specialCounter >= 4});
-                                    specialCounter = specialCounter >= 4 ? 0 : specialCounter+1;
-                                } else if (enemyAttackInterval) {
-                                    enemyAttackInterval.clear();
-                                }
-                            }, (interval * 1000) || 0);
-                        }, 20);
-                    }
+                            setTimeout(() => {
+                                enemyAttackInterval[i] = this.clock.setInterval(() => {
+                                    if (this.state.combat.ongoing && e.enemyHealth > 0) {
+                                        const isSpecial = specialCounter >= 4;
+                                        const attackArr = isSpecial ? e.specials : e.basicAttacks;
+
+                                        this.broadcast(Events.ENEMY_ATTACK, {
+                                            enemy: i,
+                                            attack: attackArr[randomIntFromInterval(0, attackArr.length)],
+                                            target: this.state.playersInCombat[randomIntFromInterval(0, this.state.playersInCombat.length)],
+                                            isSpecial,
+                                        });
+                                        specialCounter = specialCounter >= 4 ? 0 : specialCounter+1;
+                                    } else if (enemyAttackInterval[i]) {
+                                        enemyAttackInterval[i].clear();
+                                    }
+                                }, (interval * 1000) || 0);
+                            }, 20); // TODO change start time
+                        }
+                    });
                 }
             }
 
@@ -191,9 +229,13 @@ export class GameRoom extends Room<GameState> {
             this.broadcast(Events.JOIN_COMBAT, client.sessionId);
         });
 
-        this.onMessage(Events.COMBAT_ENDED, () => {
-            this.state.endCombat();
-            this.broadcast(Events.COMBAT_ENDED);
+        this.onMessage(Events.COMBAT_ENDED, (client, won) => {
+            if (won) {
+                this.state.endCombat();
+                this.broadcast(Events.COMBAT_ENDED);
+            } else {
+                this.disconnect(PlayerEvents.GAME_OVER);
+            }
         })
 
         this.onMessage(Events.UPDATE_HEALTH, (client, health: number) => {

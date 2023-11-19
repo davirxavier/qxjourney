@@ -322,43 +322,54 @@
         this._actionQueue = [];
         this._doingActionFromQueue = false;
 
-        const enemy = $gameTroop._enemies[0];
         if (ColyseusUtils.hasCombat()) {
-            const health = ColyseusUtils.getCurrentEnemyHealth();
-            enemy.setHp(health);
+            const healthArr = ColyseusUtils.getEnemyHealthArr();
+            healthArr.forEach((h, i) => $gameTroop._enemies[i] ? $gameTroop._enemies[i].setHp(h) : undefined);
             ColyseusUtils.joinCombat();
         } else {
-            ColyseusUtils.broadcastEvent(ColyseusUtils.eventTypes.COMBAT_STARTED, {enemyMaxHealth: enemy.hp, enemyAttackInterval: enemy._colyseusAttackInterval, troopId});
+            ColyseusUtils.broadcastEvent(ColyseusUtils.eventTypes.COMBAT_STARTED, {
+                troopId,
+                enemies: $gameTroop._enemies.map(e => ({
+                    enemyMaxHealth: e.mhp,
+                    enemyAttackInterval: e._colyseusAttackInterval,
+                    basicAttacks: e._colyseusBasicAttacks,
+                    specials: e._colyseusSpecialAttacks,
+                })),
+            });
         }
         ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, ColyseusUtils.getCurrentPlayer().name, true);
     }
 
-    BattleManager.cleanMultiplayer = function () {
+    BattleManager.cleanMultiplayer = function (type) {
         ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.JOIN_COMBAT);
         ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.PLAYER_EVENT);
         ColyseusUtils.removeCallback(ColyseusUtils.eventTypes.ENEMY_ATTACK);
-        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, ColyseusUtils.getCurrentPlayer().name, false);
 
         for (let i = 0; i < 49; i++) {
             $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+i, false, true);
         }
 
-        $gameParty.allMembers().forEach(m => {
-            m.revive();
-            m.setHp(9999999);
-            ColyseusUtils.sendUpdateHealth(9999999);
-        });
+        if (type === 0) {
+            $gameParty.allMembers().forEach(m => {
+                m.revive();
+                m.setHp(9999999);
+                ColyseusUtils.sendUpdateHealth(9999999);
+            });
+            ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, ColyseusUtils.getCurrentPlayer().name, false);
+        } else {
+            ColyseusUtils.saveInfo(undefined, ColyseusUtils.getCurrentPlayer().name, false);
+        }
 
         if (!this._calledBattleEnded) {
-            ColyseusUtils.sendCombatEnded();
+            ColyseusUtils.sendCombatEnded(type === 0);
             this._calledBattleEnded = true;
         }
     };
 
     const _BattleManager_endBattle = BattleManager.endBattle;
-    BattleManager.endBattle = function () {
+    BattleManager.endBattle = function (type) {
         _BattleManager_endBattle.apply(this, arguments);
-        this.cleanMultiplayer();
+        this.cleanMultiplayer(type);
     }
 
     const _BattleManager_endAction = BattleManager.endAction;
@@ -446,8 +457,18 @@
                     enemy._colyseusAttackInterval = 10;
                 }
 
+                if ($dataEnemies[member.enemyId].meta && $dataEnemies[member.enemyId].meta.BasicAttack) {
+                    enemy._colyseusBasicAttacks = $dataEnemies[member.enemyId].meta.BasicAttack.split(',')
+                        .map(a => parseInt(a, 10) || 239);
+                } else {
+                    enemy._colyseusBasicAttacks = [239];
+                }
+
                 if ($dataEnemies[member.enemyId].meta && $dataEnemies[member.enemyId].meta.SpecialAttack) {
-                    enemy._colyseusSpecialAttack = parseInt($dataEnemies[member.enemyId].meta.SpecialAttack, 10) || 240;
+                    enemy._colyseusSpecialAttacks = $dataEnemies[member.enemyId].meta.SpecialAttack.split(',')
+                        .map(a => parseInt(a, 10) || 239);
+                } else {
+                    enemy._colyseusSpecialAttacks = [239];
                 }
 
                 if (member.hidden) {
@@ -467,13 +488,13 @@
     const _Scene_Battle_stop = Scene_Battle.prototype.stop;
     Scene_Battle.prototype.stop = function () {
         _Scene_Battle_stop.apply(this, arguments);
-        BattleManager.cleanMultiplayer();
+        BattleManager.cleanMultiplayer(0);
     }
 
     const _Scene_Battle_terminate = Scene_Battle.prototype.terminate;
     Scene_Battle.prototype.terminate = function () {
         _Scene_Battle_terminate.apply(this, arguments);
-        BattleManager.cleanMultiplayer();
+        BattleManager.cleanMultiplayer(0);
     }
 
     Scene_Battle.prototype.updateCancelButton = function() {
@@ -523,11 +544,17 @@
             }
         });
 
-        ColyseusUtils.onEnemyAttack((isSpecial) => {
-            if (ColyseusUtils.getCurrentEnemyHealth() > 0) {
-                const enemy = $gameTroop._enemies[0];
-                const attack = enemy.meta && enemy.meta.BasicAttack && parseInt(enemy.meta.BasicAttack) ? parseInt(enemy.meta.BasicAttack) : 239;
-                this.doAction($gameParty.battleMembers()[0], 'a', isSpecial ? enemy._colyseusSpecialAttack : attack, true, enemy);
+        ColyseusUtils.onEnemyAttack((event) => {
+            const enemyIndex = event.enemy;
+            const enemyHealth = ColyseusUtils.getEnemyHealthArr()[enemyIndex];
+            // const isSpecial = event.isSpecial;
+            const attackId = event.attack;
+            const targetIndex = ColyseusUtils.getPlayers(true).findIndex(p => p.sessionId === event.target);
+
+            if (enemyHealth > 0) {
+                const enemy = $gameTroop._enemies[enemyIndex];
+                const attack = attackId ? attackId : 239;
+                this.doAction($gameParty.battleMembers()[targetIndex], 'a', attack, true, enemy);
 
                 if (this._currentRechargingActionType === 'g' && !this._isAnsweringMath) {
                     [this._attackButton, this._guardButton, this._specialButton].forEach(b => b.visible = true);

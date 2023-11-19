@@ -12,8 +12,12 @@ export class AttackEvent extends PartialClass<AttackEvent>{
 }
 
 export class CombatStartedEvent extends PartialClass<CombatStartedEvent> {
-    enemyMaxHealth: number;
-    enemyAttackInterval: number;
+    enemies: {
+        enemyMaxHealth: number,
+        enemyAttackInterval: number,
+        basicAttacks: number[],
+        specials: number[],
+    }[];
     troopId: number;
 }
 

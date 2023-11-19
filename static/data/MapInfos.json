@@ -1,21 +1,22 @@
 [
 null,
 {"id":1,"expanded":false,"name":"MAP001","order":1,"parentId":0,"scrollX":884.7272727272727,"scrollY":499.0909090909091},
-{"id":2,"expanded":false,"name":"Escola","order":2,"parentId":0,"scrollX":832,"scrollY":944},
+{"id":2,"expanded":false,"name":"Escola","order":2,"parentId":0,"scrollX":819,"scrollY":944.5},
 {"id":3,"expanded":false,"name":"Salão da Escola","order":3,"parentId":2,"scrollX":1390.2857142857142,"scrollY":784.2857142857142},
 {"id":4,"expanded":false,"name":"Sala de Aula","order":4,"parentId":2,"scrollX":1390.2857142857142,"scrollY":784.2857142857142},
 {"id":5,"expanded":false,"name":"Cidade Abandonada","order":6,"parentId":9,"scrollX":1404,"scrollY":1039.7142857142856},
 {"id":6,"expanded":false,"name":"Casa Abandonada","order":7,"parentId":5,"scrollX":1390.2857142857142,"scrollY":784.2857142857142},
 {"id":7,"expanded":true,"name":"Casa Abandonada","order":8,"parentId":5,"scrollX":973.1999999999999,"scrollY":549},
 {"id":8,"expanded":true,"name":"Casa Abandonada","order":9,"parentId":5,"scrollX":720.8888888888889,"scrollY":406.6666666666667},
-{"id":9,"expanded":false,"name":"Floresta","order":5,"parentId":0,"scrollX":884.7272727272727,"scrollY":929.9999999999999},
+{"id":9,"expanded":false,"name":"Floresta","order":5,"parentId":0,"scrollX":819,"scrollY":929.5},
 {"id":10,"expanded":false,"name":"Templo da Campina Abandonada","order":10,"parentId":9,"scrollX":1390.2857142857142,"scrollY":784.2857142857142},
-{"id":11,"expanded":false,"name":"Mercado","order":11,"parentId":0,"scrollX":1390.2857142857142,"scrollY":784.2857142857142},
+{"id":11,"expanded":false,"name":"Mercado","order":11,"parentId":0,"scrollX":811,"scrollY":457.5},
 {"id":12,"expanded":false,"name":"Oásis","order":12,"parentId":11,"scrollX":0,"scrollY":0},
 {"id":13,"expanded":false,"name":"Templo do Deserto Abandonado","order":13,"parentId":11,"scrollX":0,"scrollY":0},
-{"id":14,"expanded":false,"name":"Castelo","order":14,"parentId":0,"scrollX":1404,"scrollY":1382.5714285714284},
+{"id":14,"expanded":false,"name":"Castelo","order":14,"parentId":0,"scrollX":1149,"scrollY":1382.5},
 {"id":15,"expanded":false,"name":"Castelo 1º Andar","order":15,"parentId":14,"scrollX":1390.2857142857142,"scrollY":991.7142857142857},
 {"id":16,"expanded":false,"name":"Castelo 3º Andar","order":16,"parentId":14,"scrollX":1390.2857142857142,"scrollY":1135.7142857142856},
-{"id":17,"expanded":false,"name":"Cidade da Neve","order":17,"parentId":0,"scrollX":1390.2857142857142,"scrollY":784.2857142857142},
-{"id":18,"expanded":false,"name":"Casa 1","order":18,"parentId":17,"scrollX":1081.3333333333333,"scrollY":610}
+{"id":17,"expanded":false,"name":"Cidade da Neve","order":17,"parentId":0,"scrollX":819,"scrollY":764.5},
+{"id":18,"expanded":true,"name":"Casa 1","order":18,"parentId":17,"scrollX":811,"scrollY":457.5},
+{"id":19,"expanded":false,"name":"Caverna de Gelo","order":19,"parentId":18,"scrollX":0,"scrollY":0}
 ]
