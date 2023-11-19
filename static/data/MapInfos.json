@@ -1,6 +1,6 @@
 [
 null,
-{"id":1,"expanded":false,"name":"MAP001","order":1,"parentId":0,"scrollX":884.7272727272727,"scrollY":499.0909090909091},
+{"id":1,"expanded":false,"name":"MAP001","order":1,"parentId":0,"scrollX":338,"scrollY":445},
 {"id":2,"expanded":false,"name":"Escola","order":2,"parentId":0,"scrollX":819,"scrollY":944.5},
 {"id":3,"expanded":false,"name":"Salão da Escola","order":3,"parentId":2,"scrollX":1390.2857142857142,"scrollY":784.2857142857142},
 {"id":4,"expanded":false,"name":"Sala de Aula","order":4,"parentId":2,"scrollX":1390.2857142857142,"scrollY":784.2857142857142},

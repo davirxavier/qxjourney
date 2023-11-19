@@ -338,6 +338,19 @@
             });
         }
         ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, ColyseusUtils.getCurrentPlayer().name, true);
+        this.ajustBalancing();
+    }
+
+    let enemyBalanceRate = 1.0;
+    let playerBalanceRate = 1.0;
+
+    BattleManager.ajustBalancing = function () {
+        $gameTroop._enemies.forEach(e => e.recoverAll());
+        enemyBalanceRate = Math.max(1, ColyseusUtils.inCombatPlayerCount()/2.0);
+    }
+
+    Game_BattlerBase.prototype.paramRate = function () {
+        return this._enemyId ? enemyBalanceRate : playerBalanceRate;
     }
 
     BattleManager.cleanMultiplayer = function (type) {
@@ -530,6 +543,7 @@
                 spritesSliced = this._spriteset._actorSprites.slice(1);
                 $gameSwitches.setValue(uiStorage.switches.showPlayerCombat0+ColyseusUtils.getPlayers().findIndex(p2 => p2.sessionId === sessionId), true, true);
             }
+            BattleManager.ajustBalancing();
         });
 
         ColyseusUtils.onPlayerEvent(event => {
