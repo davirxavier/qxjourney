@@ -9,6 +9,7 @@ export abstract class PartialClass<T> {
 export class AttackEvent extends PartialClass<AttackEvent>{
     damage: number;
     skillId: number;
+    timeUsed: number;
 }
 
 export class CombatStartedEvent extends PartialClass<CombatStartedEvent> {

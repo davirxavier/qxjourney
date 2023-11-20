@@ -1,8 +1,9 @@
 import express from 'express';
 import expressify from "uwebsockets-express"
-import {LobbyRoom, Server} from "colyseus";
+import {Server} from "colyseus";
 import {GameRoom} from "./game.room";
 import {uWebSocketsTransport} from "@colyseus/uwebsockets-transport";
+import {CustomLobby} from "./CustomLobby";
 
 const transport = new uWebSocketsTransport({sendPingsAutomatically: true});
 const app = expressify(transport.app);
@@ -19,7 +20,7 @@ app.use('*', (req, res) => {
 
 const gameServer = new Server({transport});
 
-gameServer.define("lobby", LobbyRoom);
+gameServer.define("lobby", CustomLobby);
 
 gameServer.define('main_room', GameRoom)
     .enableRealtimeListing();

@@ -41,6 +41,10 @@
             height: 192px;
         }
 
+        .cursor-pointer {
+            cursor: pointer !important;
+        }
+
         @media (max-width: 1000px) {
             #nameContainer label, button {
                 font-size: 6vw !important;
@@ -75,6 +79,13 @@
         <label for="nameField" class="w-100 text-center" style="font-size: 3vw;">Qual é o seu nome?</label>
         <input id="nameField" class="w-50 form-control form-control-lg mt-4 text-center" type="text" placeholder="Seu nome" minlength="1">
         <button onclick="selectChar()" class="mt-4 btn btn-primary" style="font-size: 2vw;">Iniciar jogo!</button>
+        <a class="link-primary cursor-pointer mt-3" onclick="toggleScores()">Lista de Pontuações</a>
+    </div>
+
+    <div id="scoreListing" class="d-flex flex-column justify-content-start align-items-center mx-5">
+        <h2 style="font-size: 3vw;" class="fw-bold my-1">QxJourney</h2>
+        <label style="font-size: 2vw;">Lista de Pontuações</label>
+        <a class="link-primary cursor-pointer mt-3" onclick="toggleScores()">Voltar</a>
     </div>
 
     <div id="createChar" class="w-100 d-flex flex-column align-items-center justify-content-center px-5">
@@ -118,6 +129,7 @@
     <script>
         var colyseusPlayerName = undefined;
         var isInit = false;
+        var isInitScores = false;
 
         const nameField = document.getElementById("nameField");
         const nameContainer = document.getElementById("nameContainer");
@@ -127,13 +139,25 @@
         const reconnectText = document.getElementById("reconnectText");
         const roomListing = document.getElementById("roomListing");
         const spinnerContainer = document.getElementById("spinnerContainer");
+        const scoreListing = document.getElementById("scoreListing");
         const createRoom = document.getElementById("createRoom");
         const createChar = document.getElementById("createChar");
         const charImg = document.getElementById("image");
 
-        createChar.style = "display: none !important";
+        scoreListing.style = "display: none !important;";
+        createChar.style = "display: none !important;";
         spinnerContainer.style = "display: none !important;"
         reconnectContainer.style = "display: none !important;";
+
+        let showingScores = false;
+        function toggleScores() {
+            showingScores = !showingScores;
+            if (showingScores) {
+                loadScores();
+            } else {
+                location.reload();
+            }
+        }
 
         const size = 192;
         let currentChar = 0;
@@ -264,6 +288,71 @@
         function selectChar() {
             nameContainer.style = 'display: none !important';
             createChar.style = '';
+        }
+
+        function loadScores(cb) {
+            ColyseusUtils.onUpdateRoomsCallback = (updateType, roomId, room) => {
+                const addFn = (roomId, room) => {
+                    if (document.getElementById('room-' + roomId)) {
+                        document.getElementById(`room-${roomId}-clients`).innerText = `${room.clients} jogadores (máximo de ${room.maxClients} jogadores)`;
+                        return;
+                    }
+
+                    const upperCont = document.createElement('div');
+                    upperCont.classList.add('room-upper-cont');
+                    upperCont.id = 'room-' + roomId;
+
+                    upperCont.innerHTML = `
+                        <hr>
+                        <div class="room-cont d-flex my-4 justify-content-between align-items-center">
+                            <div class="d-flex">
+                                <h4 class="fw-bold">${room.metadata.roomName}</h4>
+                                <h4 class="px-5" id="room-${roomId}-score">0</h4>
+                            </div>
+                        </div>
+                        <hr>
+                    `;
+
+                    scoreListing.appendChild(upperCont);
+                };
+
+                if (updateType === "+") {
+                    addFn(roomId, room);
+                } else if (updateType === "-") {
+                    document.getElementById('room-' + roomId).remove();
+                } else {
+                    document.querySelectorAll('div[id^=room-]').forEach(n => n.remove());
+                    ColyseusUtils.roomsAvailable.forEach(r => addFn(r.roomId, r));
+                }
+            };
+
+            ColyseusUtils.onUpdateScoresCallback = (scores) => {
+                Object.keys(scores).forEach(roomId => {
+                    const room = document.getElementById('room-' + roomId + '-score');
+                    if (room) {
+                        room.innerText = scores[roomId] || 0;
+                    }
+                });
+            };
+
+            if (!isInitScores) {
+                showSpinner(true, [nameContainer]);
+                isInitScores = true;
+                const url = (window.location.protocol.startsWith('https') ? 'wss://' : 'ws://') + window.location.host +
+                    (window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/game')));
+                console.log('Connecting to: '+ url);
+                ColyseusUtils.init(url)
+                    .then(() => showSpinner(false, [nameContainer]))
+                    .then(() => {
+                        console.log('Connected to server.')
+                        nameContainer.style = 'display: none !important;';
+                        scoreListing.style = '';
+
+                        if (cb) {
+                            cb();
+                        }
+                    }).catch(e => isInit = false);
+            }
         }
 
         function load(cb) {

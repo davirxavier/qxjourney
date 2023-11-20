@@ -424,6 +424,7 @@
             const actionDoer = actionData.actionDoer;
             const skillId = actionData.skillId;
             const enemy = actionData.enemy;
+            const timeUsed = actionData.timeUsed;
             BattleManager._currentActor = actionData.battler;
 
             const actionByType = actionsByType[actionKey];
@@ -447,7 +448,7 @@
             actionDoer._actions = [];
 
             if (!actionData.omitEvent) {
-                ColyseusUtils.broadcastEvent(actionByType.event, {skillId: actionData.skillId, damage: damage, isGuard: actionKey === 'g'});
+                ColyseusUtils.broadcastEvent(actionByType.event, {skillId: actionData.skillId, damage: damage, isGuard: actionKey === 'g', timeUsed});
             }
         } else {
             this._actionQueue.push(actionData);
@@ -627,7 +628,7 @@
                 }
 
                 if (this._answeredCorrectly) {
-                    this.doAction($gameParty.battleMembers()[0], this._currentRechargingActionType, this._currentRechargingSkillId);
+                    this.doAction($gameParty.battleMembers()[0], this._currentRechargingActionType, this._currentRechargingSkillId, undefined, undefined, this._mathAnswerVal / 100);
                 } else {
                     btns.forEach(b => b.visible = true);
                     this.setRechargingActions(true, this._currentRechargingActionType);
@@ -738,7 +739,7 @@
         Object.keys(switchByButton).forEach(k => $gameSwitches.setValue(switchByButton[k], val, true));
     }
 
-    Scene_Battle.prototype.doAction = function (battler, actionKey, skillId, omitEvent, enemy) {
+    Scene_Battle.prototype.doAction = function (battler, actionKey, skillId, omitEvent, enemy, timeUsed) {
         let actionDoer = battler;
         if (enemy) {
             actionDoer = enemy;
@@ -750,6 +751,7 @@
             actionDoer,
             omitEvent,
             skillId,
+            timeUsed,
             enemy: enemy,
         });
     }

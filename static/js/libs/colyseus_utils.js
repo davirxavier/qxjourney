@@ -9,6 +9,7 @@ var ColyseusUtils = {
     forceDifficulty: undefined,
     difficulty: 0,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
+    onUpdateScoresCallback: (scores) => {},
     debugMode: false,
 
     calcSolveTime: () => {
@@ -43,6 +44,12 @@ var ColyseusUtils = {
 
         const client = ColyseusUtils.colyseusClient;
         const lobby = await client.joinOrCreate("lobby");
+
+        lobby.onMessage("update_score", (scores) => {
+            if (ColyseusUtils.onUpdateScoresCallback) {
+                ColyseusUtils.onUpdateScoresCallback(scores);
+            }
+        });
 
         lobby.onMessage("rooms", (rooms) => {
             ColyseusUtils.roomsAvailable = rooms;
@@ -274,11 +281,11 @@ var ColyseusUtils = {
         }
     },
     onDisconnected: (callback) => {
-          if (callback) {
-              ColyseusUtils.colyseusRoom.onLeave((code) => {
-                  callback(code);
-              });
-          }
+        if (callback) {
+          ColyseusUtils.colyseusRoom.onLeave((code) => {
+              callback(code);
+          });
+        }
     },
 
     removeCallback: (name, index) => {

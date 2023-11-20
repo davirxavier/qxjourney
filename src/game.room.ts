@@ -3,6 +3,7 @@ import {Client, Delayed, Room, updateLobby} from "colyseus";
 import {Events, PlayerEvents} from "./events";
 import {AttackEvent, CombatStartedEvent, GameSwitchVariableEvent} from "./interfaces";
 import {randomIntFromInterval, scale} from "./utils";
+import {BehaviorSubject} from "rxjs";
 
 export class Player extends Schema {
 
@@ -87,6 +88,8 @@ export class GameState extends Schema {
 
     @type('number')
     difficulty = 0;
+
+    score = 0;
 
     createPlayer(sessionId: string, name: string, charId: number) {
         const p = new Player();
@@ -185,6 +188,7 @@ export class GameRoom extends Room<GameState> {
             if (message && message.type === PlayerEvents.ATTACK) {
                 const data = new AttackEvent(message.data);
                 if (data.damage) {
+                    this.state.score += Math.ceil(scale(data.timeUsed || 0, [0, 1], [10, 100]));
                     if (this.state.attackEnemy(data.damage)) {
                         if (enemyAttackInterval) {
                             enemyAttackInterval.forEach(i => i.clear());
@@ -254,7 +258,7 @@ export class GameRoom extends Room<GameState> {
 
         this.maxClients = parseInt(options.maxPlayers, 10) || 99;
         this.setMetadata({
-            roomName: options.roomName
+            roomName: options.roomName,
         }).then(() => updateLobby(this));
     }
 
