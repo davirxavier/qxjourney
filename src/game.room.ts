@@ -19,7 +19,7 @@ export class Player extends Schema {
     y = 1;
 
     @type("number")
-    playerSprite = -1;
+    charId = -1;
 
     @type("number")
     health = -1;
@@ -88,12 +88,11 @@ export class GameState extends Schema {
     @type('number')
     difficulty = 0;
 
-    createPlayer(sessionId: string, config: string) {
+    createPlayer(sessionId: string, name: string, charId: number) {
         const p = new Player();
 
-        const split = config.split(';;;');
-        p.name = split[0];
-        p.playerSprite = split[1] ? parseInt(split[1], 10) || this.players.size : this.players.size;
+        p.name = name;
+        p.charId = charId || 0;
 
         this.players.set(sessionId, p);
         return {...p, sessionId};
@@ -261,7 +260,7 @@ export class GameRoom extends Room<GameState> {
 
     async onJoin(client: Client, options): Promise<any> {
         client.send(Events.EVENT_LIST, ({...Events}));
-        this.broadcast(Events.PLAYER_JOINED, this.state.createPlayer(client.sessionId, options.name));
+        this.broadcast(Events.PLAYER_JOINED, this.state.createPlayer(client.sessionId, options.name, parseInt(options.charId) || 0));
     }
 
     async removePlayer(sessionId: string) {

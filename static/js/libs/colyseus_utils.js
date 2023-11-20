@@ -76,8 +76,8 @@ var ColyseusUtils = {
         });
     },
 
-    saveInfo: (token, name, inCombat) => {
-      localStorage.setItem('rtoken', JSON.stringify({token, name, isInCombat: !!inCombat}));
+    saveInfo: (token, name, charId, inCombat) => {
+      localStorage.setItem('rtoken', JSON.stringify({token, name, charId, isInCombat: !!inCombat}));
     },
     getSavedInfo: () => {
         const token = localStorage.getItem('rtoken');
@@ -95,36 +95,37 @@ var ColyseusUtils = {
         }
     },
 
-    createRoomAndJoin: async (name, roomName, maxPlayers, difficulty) => {
+    createRoomAndJoin: async (name, roomName, maxPlayers, difficulty, charId) => {
         ColyseusUtils.leaveRoom();
 
         ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.create('main_room', {
             name: name,
+            charId: charId,
             roomName: roomName,
             maxPlayers: maxPlayers,
             difficulty: difficulty || 0,
         });
-        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
+        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name, charId);
         ColyseusUtils.difficulty = difficulty;
     },
 
-    joinRoom: async (name, roomId) => {
+    joinRoom: async (name, roomId, charId) => {
         if (ColyseusUtils.colyseusRoom && roomId !== ColyseusUtils.colyseusRoom.id) {
             ColyseusUtils.leaveRoom();
         }
 
-        ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.joinById(roomId, {name: name});
+        ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.joinById(roomId, {name, charId});
         ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
         ColyseusUtils.difficulty = ColyseusUtils.colyseusRoom.state.difficulty;
     },
 
-    reconnect: async (name, token) => {
+    reconnect: async (name, charId, token) => {
         if (ColyseusUtils.colyseusRoom) {
             ColyseusUtils.leaveRoom();
         }
 
         ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.reconnect(token);
-        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
+        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name, charId);
     },
 
     disconnect: async () => {

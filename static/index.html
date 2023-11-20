@@ -36,6 +36,11 @@
             display: none !important;
         }
 
+        #image {
+            width: 192px;
+            height: 192px;
+        }
+
         @media (max-width: 1000px) {
             #nameContainer label, button {
                 font-size: 6vw !important;
@@ -69,6 +74,19 @@
         <h2 style="font-size: 4vw;" class="fw-bold">QxJourney</h2>
         <label for="nameField" class="w-100 text-center" style="font-size: 3vw;">Qual é o seu nome?</label>
         <input id="nameField" class="w-50 form-control form-control-lg mt-4 text-center" type="text" placeholder="Seu nome" minlength="1">
+        <button onclick="selectChar()" class="mt-4 btn btn-primary" style="font-size: 2vw;">Iniciar jogo!</button>
+    </div>
+
+    <div id="createChar" class="w-100 d-flex flex-column align-items-center justify-content-center px-5">
+        <h2 style="font-size: 4vw;" class="fw-bold">QxJourney</h2>
+        <label for="nameField" class="w-100 text-center mb-3" style="font-size: 3vw;">Escolha seu personagem!</label>
+
+        <div class="d-flex align-items-center justify-content-center">
+            <button class="btn btn-primary" onclick="prevChar()"><</button>
+            <div><p id="image"></p></div>
+            <button class="btn btn-primary" onclick="nextChar()">></button>
+        </div>
+
         <button onclick="load()" class="mt-4 btn btn-primary" style="font-size: 2vw;">Iniciar jogo!</button>
     </div>
 
@@ -110,9 +128,44 @@
         const roomListing = document.getElementById("roomListing");
         const spinnerContainer = document.getElementById("spinnerContainer");
         const createRoom = document.getElementById("createRoom");
+        const createChar = document.getElementById("createChar");
+        const charImg = document.getElementById("image");
 
+        createChar.style = "display: none !important";
         spinnerContainer.style = "display: none !important;"
         reconnectContainer.style = "display: none !important;";
+
+        const size = 192;
+        let currentChar = 0;
+        let position = size;
+        updateCurrentChar();
+        const charInterval = setInterval(() => {
+            charImg.style.backgroundPosition = `-${position}px 0px`;
+            if (position < size*2) {
+                position = position + size;
+            } else {
+                position = size;
+            }
+        }, 200);
+
+        function prevChar() {
+            if (currentChar > 0) {
+                currentChar--;
+                updateCurrentChar();
+            }
+        }
+
+        function nextChar() {
+            if (currentChar < 7) {
+                currentChar++;
+                updateCurrentChar();
+            }
+        }
+
+        function updateCurrentChar() {
+            charImg.style.background = `url('img/sv_actors/big/SF_Actor1_${currentChar+1}.png') 0px 0px`;
+            position = size * currentChar;
+        }
 
         function showSpinner(show, toModify) {
             const style = show ? "display: none !important;" : "";
@@ -127,6 +180,9 @@
 
             colyseusPlayerName = savedInfo.name;
             nameField.value = colyseusPlayerName;
+            currentChar = savedInfo.charId || 0;
+
+            updateCurrentChar();
 
             if (savedInfo.token) {
                 nameContainer.style = "display: none !important;";
@@ -139,7 +195,7 @@
 
                     const onRecError = (e) => {
                         if (e && e.code === ColyseusUtils.errorCodes.ROOM_DELETED) {
-                            ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
+                            ColyseusUtils.saveInfo(undefined, colyseusPlayerName, currentChar);
                             reconnectButton2.style = 'display: none !important;';
                             reconnectText.innerHTML = "😔😔😔<br>Xiiii, parece que a sua equipe no jogo foi apagada...";
                             reconnectButton.innerText = "Criar uma nova!";
@@ -154,7 +210,7 @@
 
                     reconnectButton.onclick = () => {
                         showSpinner(true, [reconnectContainer]);
-                        ColyseusUtils.reconnect(colyseusPlayerName, savedInfo.token)
+                        ColyseusUtils.reconnect(colyseusPlayerName, currentChar, savedInfo.token)
                             .then(() => showSpinner(false, [reconnectContainer]))
                             .then(() => loadFrame())
                             .catch((e) => onRecError(e));
@@ -164,14 +220,14 @@
                         reconnectButton2.style = 'display: none !important;';
                     } else {
                         const onCancel = () => {
-                            ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
+                            ColyseusUtils.saveInfo(undefined, colyseusPlayerName, currentChar);
                             showSpinner(false, [reconnectContainer]);
                             location.reload();
                         };
 
                         reconnectButton2.onclick = () => {
                             showSpinner(true, [reconnectContainer]);
-                            ColyseusUtils.reconnect(colyseusPlayerName, savedInfo.token)
+                            ColyseusUtils.reconnect(colyseusPlayerName, currentChar, savedInfo.token)
                                 .then(() => ColyseusUtils.disconnect())
                                 .then(() => showSpinner(true, [reconnectContainer]))
                                 .then(() => onCancel()).catch(e => onCancel());
@@ -203,6 +259,11 @@
 
             document.body.appendChild(gameFrame);
             ColyseusUtils.onDisconnected(code => handleDisconnect(code));
+        }
+
+        function selectChar() {
+            nameContainer.style = 'display: none !important';
+            createChar.style = '';
         }
 
         function load(cb) {
@@ -256,11 +317,12 @@
                 const url = (window.location.protocol.startsWith('https') ? 'wss://' : 'ws://') + window.location.host +
                     (window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/game')));
                 console.log('Connecting to: '+ url);
-                ColyseusUtils.init(url, name, "teste")
+                ColyseusUtils.init(url)
                     .then(() => showSpinner(false, [nameContainer]))
                     .then(() => {
                         console.log('Connected to server.')
                         document.getElementById('nameContainer').style = 'display: none !important;';
+                        document.getElementById('createChar').style = 'display: none !important;';
                         document.getElementById('roomListing').style = 'display: flex !important;';
                         document.getElementById('createRoom').style = 'display: flex !important;';
 
@@ -281,7 +343,7 @@
             }
 
             showSpinner(true, [roomListing, createRoom]);
-            ColyseusUtils.createRoomAndJoin(colyseusPlayerName, roomName, max, diff)
+            ColyseusUtils.createRoomAndJoin(colyseusPlayerName, roomName, max, diff, currentChar)
                 .then(() => {
                     showSpinner(false, [roomListing, createRoom]);
                     loadFrame();
@@ -290,7 +352,7 @@
 
         function join(roomId) {
             showSpinner(true, [roomListing, createRoom]);
-            ColyseusUtils.joinRoom(colyseusPlayerName, roomId).then(() => {
+            ColyseusUtils.joinRoom(colyseusPlayerName, roomId, currentChar).then(() => {
                 showSpinner(false, [roomListing, createRoom]);
                 loadFrame();
             }).catch(e => showSpinner(false, [roomListing, createRoom]));

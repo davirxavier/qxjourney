@@ -120,6 +120,13 @@
         }
     };
 
+    const charMappings = {
+      skills: {
+          basic: {},
+          specials: {},
+      }
+    };
+
     function MathGenerator() {
         throw new Error("This is a static class");
     }
@@ -799,7 +806,7 @@
         Sprite_Battler.prototype.updateBitmap.call(this);
         // const name = this._actor.battlerName();
         const battlerIndex = this._battler.index();
-        const name = "Actor1_" + ((battlerIndex === 0 ? ColyseusUtils.getCurrentPlayer() : (ColyseusUtils.getPlayers()[battlerIndex-1] || {playerSprite: 0})).playerSprite + 1);
+        const name = "Actor1_" + ((battlerIndex === 0 ? ColyseusUtils.getCurrentPlayer() : (ColyseusUtils.getPlayers()[battlerIndex-1] || {charId: 0})).charId + 1);
         if (this._battlerName !== name) {
             this._battlerName = name;
             this._mainSprite.bitmap = ImageManager.loadSvActor(name);
@@ -924,7 +931,7 @@
     Game_Player.prototype.initMembers = function () {
         _Game_Player_initMembers.apply(this, arguments);
         const currPlayer = ColyseusUtils.getCurrentPlayer();
-        this.setCustomChar("Actor1", currPlayer ? currPlayer.playerSprite : 0);
+        this.setCustomChar("SF_Actor1", currPlayer ? currPlayer.charId : 0);
     }
 
     Game_Player.prototype.setCustomChar = function (name, index) {
@@ -1072,7 +1079,7 @@
         follower._isRunning = p.isRunning;
         follower._externalPlayer = p;
         follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
-        follower.setCustomChar("Actor1", p.playerSprite);
+        follower.setCustomChar("SF_Actor1", p.charId);
 
         $gameVariables.setValue(uiStorage.variables.playerName0 + followerIndex, p.name, true);
         $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, true, true);
@@ -1162,6 +1169,12 @@
             actor['externalPlayer'] = p;
         });
     }
+    //
+    // const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
+    // Game_Actor.prototype.initMembers = function () {
+    //     _Game_Actor_initMembers.apply(this, arguments);
+    //     this._specialSkill = charMappings.skills.specials[ColyseusUtils];
+    // }
 
     //-----------------------------------------------------------------------------
     // Custom button sprite
