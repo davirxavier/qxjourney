@@ -2,7 +2,7 @@ import {ArraySchema, MapSchema, Schema, type} from "@colyseus/schema";
 import {Client, Delayed, Room, updateLobby} from "colyseus";
 import {Events, PlayerEvents} from "./events";
 import {AttackEvent, CombatStartedEvent, GameSwitchVariableEvent} from "./interfaces";
-import {randomIntFromInterval} from "./utils";
+import {randomIntFromInterval, scale} from "./utils";
 
 export class Player extends Schema {
 
@@ -84,6 +84,9 @@ export class GameState extends Schema {
 
     @type({map: 'string'})
     gameVariables = new MapSchema<string>();
+
+    @type('number')
+    difficulty = 0;
 
     createPlayer(sessionId: string, config: string) {
         const p = new Player();
@@ -172,6 +175,7 @@ export class GameRoom extends Room<GameState> {
     async onCreate(options: any): Promise<any> {
         this.clock.start();
         this.setState(new GameState());
+        this.state.difficulty = parseInt(options.difficulty);
 
         this.onMessage(Events.PLAYER_MOVE, (client, message) => {
             this.state.movePlayer(client.sessionId, message);
@@ -214,8 +218,8 @@ export class GameRoom extends Room<GameState> {
                                     } else if (enemyAttackInterval[i]) {
                                         enemyAttackInterval[i].clear();
                                     }
-                                }, (interval * 1000) || 0);
-                            }, 20); // TODO change start time
+                                }, (scale(this.state.difficulty, [0, 8], [interval*1000*2.2, interval*1000])) || 0);
+                            }, scale(this.state.difficulty, [0, 8], [5000, 0]));
                         }
                     });
                 }

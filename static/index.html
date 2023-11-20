@@ -81,8 +81,16 @@
         <hr class="w-100">
         <label for="roomNameField" style="font-size: 2vw;">Ou crie uma equipe nova:</label>
         <div class="d-flex flex-column justify-content-center align-items-center">
-            <input id="roomNameField" type="text" placeholder="Nome da sala" class="form-control form-control-sm mb-2">
-            <input id="roomMaxField" type="number" max="99" placeholder="Jogadores máximos" class="form-control form-control-sm">
+            <input id="roomNameField" type="text" placeholder="Nome da sala" class="form-control mb-2">
+            <input id="roomMaxField" type="number" max="99" placeholder="Jogadores máximos" class="form-control mb-2">
+            <select id="room-diff" type="number" class="form-select mb-1">
+                <option value="-1">Escolha o nível desejado</option>
+                <option value="0">Operações com números de 0 a 2</option>
+                <option value="2">Operações com números de 0 a 4</option>
+                <option value="4">Operações com números de 0 a 6</option>
+                <option value="6">Operações com números de 0 a 8</option>
+                <option value="8">Operações com números de 0 a 10</option>
+            </select>
             <button onclick="create()" style="font-size: 3vw !important;" class="btn btn-primary btn-sm mt-1 w-100">Criar!</button>
         </div>
     </div>
@@ -266,13 +274,14 @@
         function create() {
             const roomName = document.getElementById('roomNameField').value;
             const max = document.getElementById('roomMaxField').value;
+            const diff = document.getElementById('room-diff').value;
 
-            if (!roomName || !max) {
+            if (!roomName || !max || diff < 0) {
                 return;
             }
 
             showSpinner(true, [roomListing, createRoom]);
-            ColyseusUtils.createRoomAndJoin(colyseusPlayerName, roomName, max)
+            ColyseusUtils.createRoomAndJoin(colyseusPlayerName, roomName, max, diff)
                 .then(() => {
                     showSpinner(false, [roomListing, createRoom]);
                     loadFrame();

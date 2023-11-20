@@ -5,13 +5,15 @@ var ColyseusUtils = {
     roomsAvailable: [],
     playerCount: 0,
     abilityRechargeSeconds: 4,
-    questionSolveSeconds: 10,
-    attackDamage: 10,
-    specialDamage: 50,
+    baseSolveSeconds: 15,
     forceDifficulty: undefined,
     difficulty: 0,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
     debugMode: false,
+
+    calcSolveTime: () => {
+        return ColyseusUtils.baseSolveSeconds - (0.8 * ColyseusUtils.difficulty);
+    },
 
     eventTypes: {
         ATTACK_EVENT: 0,
@@ -93,15 +95,17 @@ var ColyseusUtils = {
         }
     },
 
-    createRoomAndJoin: async (name, roomName, maxPlayers) => {
+    createRoomAndJoin: async (name, roomName, maxPlayers, difficulty) => {
         ColyseusUtils.leaveRoom();
 
         ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.create('main_room', {
             name: name,
             roomName: roomName,
-            maxPlayers: maxPlayers
+            maxPlayers: maxPlayers,
+            difficulty: difficulty || 0,
         });
         ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
+        ColyseusUtils.difficulty = difficulty;
     },
 
     joinRoom: async (name, roomId) => {
@@ -111,6 +115,7 @@ var ColyseusUtils = {
 
         ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.joinById(roomId, {name: name});
         ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
+        ColyseusUtils.difficulty = ColyseusUtils.colyseusRoom.state.difficulty;
     },
 
     reconnect: async (name, token) => {

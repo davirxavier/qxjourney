@@ -607,7 +607,7 @@
         }
 
         if (this._isAnsweringMath) {
-            this._mathAnswerVal -= 1.66 / ColyseusUtils.questionSolveSeconds;
+            this._mathAnswerVal -= 1.66 / ColyseusUtils.calcSolveTime();
             $gameVariables.setValue(uiStorage.variables.questionGaugeValue, this._mathAnswerVal, true);
 
             if (this._mathAnswerVal <= 0 || this._answered) {
