@@ -194,6 +194,7 @@
         if (currentPlayer.x !== -1 && currentPlayer.y !== -1) {
             $dataSystem.startX = currentPlayer.x;
             $dataSystem.startY = currentPlayer.y;
+            $dataSystem.startMapId = currentPlayer.mapNum;
         }
 
         this.checkPlayerLocation();
@@ -276,6 +277,8 @@
             }, 50);
         }
     }
+
+    Scene_Map.prototype.updateEncounter = function () {} // Remove random encounters
 
     const _Game_Switches_setValue = Game_Switches.prototype.setValue;
     Game_Switches.prototype.setValue = function (switchId, value, omitEvent) {
@@ -946,7 +949,7 @@
         _Game_Player_update.apply(this, arguments);
 
         if (this.x !== lastX || this.y !== lastY) {
-            ColyseusUtils.sendMovement(0, this.x, this.y, this.realMoveSpeed() === 5);
+            ColyseusUtils.sendMovement($gameMap.mapId(), this.x, this.y, this.realMoveSpeed() === 5);
         }
     }
 

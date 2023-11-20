@@ -74,12 +74,12 @@
 
     <div id="roomListing" class="d-flex flex-column justify-content-start align-items-center mx-5">
         <h2 style="font-size: 3vw;" class="fw-bold my-1">QxJourney</h2>
-        <label style="font-size: 2vw;">Entre em uma sala!</label>
+        <label style="font-size: 2vw;">Entre em uma equipe!</label>
     </div>
 
     <div id="createRoom" class="d-flex flex-column align-items-center justify-content-center mx-5">
         <hr class="w-100">
-        <label for="roomNameField" style="font-size: 2vw;">Ou crie uma sala nova:</label>
+        <label for="roomNameField" style="font-size: 2vw;">Ou crie uma equipe nova:</label>
         <div class="d-flex flex-column justify-content-center align-items-center">
             <input id="roomNameField" type="text" placeholder="Nome da sala" class="form-control form-control-sm mb-2">
             <input id="roomMaxField" type="number" max="99" placeholder="Jogadores máximos" class="form-control form-control-sm">
@@ -133,7 +133,7 @@
                         if (e && e.code === ColyseusUtils.errorCodes.ROOM_DELETED) {
                             ColyseusUtils.saveInfo(undefined, colyseusPlayerName);
                             reconnectButton2.style = 'display: none !important;';
-                            reconnectText.innerHTML = "😔😔😔<br>Xiiii, parece que a sua sala no jogo foi apagada...";
+                            reconnectText.innerHTML = "😔😔😔<br>Xiiii, parece que a sua equipe no jogo foi apagada...";
                             reconnectButton.innerText = "Criar uma nova!";
 
                             reconnectButton.onclick = () => {
