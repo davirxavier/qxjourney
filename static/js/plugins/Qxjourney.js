@@ -5,6 +5,7 @@
             abilityRechargeShow1: 73,
             abilityRechargeShow2: 74,
             answersShow: 77,
+            showNames: 78,
             screenMessage: 501,
             showPlayer0: 21,
             showPlayer1: 22,
@@ -158,14 +159,19 @@
         return Math.floor(Math.random() * (max - min + 1) + min);
     };
 
+    MathGenerator.scale = function (number, [inMin, inMax], [outMin, outMax]) {
+        return (number - inMin) / (inMax - inMin) * (outMax - outMin) + outMin;
+    }
+
     MathGenerator.genAlternatives = function (result) {
         const ret = [];
+        const sc = this.scale(ColyseusUtils.difficulty, [0, 8], [1.5, 2.5]);
         for (let i = 0; i < 4; i++) {
             let counter = 0;
-            let random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result)*(ColyseusUtils.difficulty+1));
+            let random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result) * sc);
             while ((random === result || ret.includes(random)) && counter < 1000) {
                 counter++;
-                random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result)*((ColyseusUtils.difficulty+1)));
+                random = this.randomIntFromInterval(0, (result === 0 || result <= 4 ? 5 : result) * sc);
             }
             ret.push(random);
         }
@@ -180,6 +186,8 @@
 
     MathGenerator.gen1 = function () {
         const max = this.makeMaxNumber();
+        console.log(max)
+        console.log(ColyseusUtils.difficulty)
         const op1 = this.randomIntFromInterval(0, max);
         const op2 = this.randomIntFromInterval(0, max);
 
@@ -350,6 +358,13 @@
             charMappings.skills.basic[ColyseusUtils.getPlayers()[index-1].charId];
     }
 
+    const _Game_Interpreter_command211 = Game_Interpreter.prototype.command211;
+    Game_Interpreter.prototype.command211 = function (params) {
+        $gamePlayer._followers.data().forEach(f => f.setTransparent(params[0] === 0));
+        $gameSwitches.setValue(uiStorage.switches.showNames, params[0] === 0);
+        return _Game_Interpreter_command211.apply(this, arguments);
+    }
+
     //=============================================================================
     // Battle
     //=============================================================================
@@ -386,8 +401,12 @@
     let playerBalanceRate = 1.0;
 
     BattleManager.ajustBalancing = function () {
-        $gameTroop._enemies.forEach(e => e.recoverAll());
-        enemyBalanceRate = Math.max(1, ColyseusUtils.inCombatPlayerCount()/2.0);
+        const newRate = Math.max(1, 0.5+(ColyseusUtils.inCombatPlayerCount()/2.0));
+        const difference = newRate - enemyBalanceRate;
+        if (difference > 0) {
+            enemyBalanceRate = newRate;
+            $gameTroop._enemies.forEach(e => e.gainHp(e.mhp*difference));
+        }
     }
 
     Game_BattlerBase.prototype.paramRate = function () {

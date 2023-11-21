@@ -105,15 +105,17 @@ var ColyseusUtils = {
     createRoomAndJoin: async (name, roomName, maxPlayers, difficulty, charId) => {
         ColyseusUtils.leaveRoom();
 
+        const diff = parseInt(difficulty) || 0;
+        const max = parseInt(maxPlayers) || 20;
         ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.create('main_room', {
             name: name,
             charId: charId,
             roomName: roomName,
-            maxPlayers: maxPlayers,
-            difficulty: difficulty || 0,
+            maxPlayers: max > 20 ? 20 : max,
+            difficulty: diff,
         });
         ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name, charId);
-        ColyseusUtils.difficulty = difficulty;
+        ColyseusUtils.difficulty = diff;
     },
 
     joinRoom: async (name, roomId, charId) => {
@@ -123,7 +125,7 @@ var ColyseusUtils = {
 
         ColyseusUtils.colyseusRoom = await ColyseusUtils.colyseusClient.joinById(roomId, {name, charId});
         ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, name);
-        ColyseusUtils.difficulty = ColyseusUtils.colyseusRoom.state.difficulty;
+        ColyseusUtils.difficulty = parseInt(ColyseusUtils.colyseusRoom.state.difficulty) || 0;
     },
 
     reconnect: async (name, charId, token) => {
