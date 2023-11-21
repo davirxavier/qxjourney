@@ -122,8 +122,28 @@
 
     const charMappings = {
       skills: {
-          basic: {},
-          specials: {},
+          basic: {
+              0: 1,
+              1: 1,
+              2: 1,
+              3: 1,
+              4: 1,
+              5: 1,
+              6: 1,
+              7: 1,
+              8: 1,
+          },
+          specials: {
+              0: 234,
+              1: 234,
+              2: 234,
+              3: 234,
+              4: 234,
+              5: 234,
+              6: 234,
+              7: 234,
+              8: 234,
+          },
       }
     };
 
@@ -244,7 +264,11 @@
                 }
             });
 
-            $gameParty.allMembers()[0].setName(ColyseusUtils.getCurrentPlayer().name);
+            const player = ColyseusUtils.getCurrentPlayer();
+            const playerParty = $gameParty.allMembers()[0];
+            playerParty.setName(player.name);
+            playerParty.learnSkill(charMappings.skills.specials[player.charId]);
+
             ColyseusUtils.getPlayers().forEach(p => $gamePlayer._followers.onPlayerJoined(p));
             ColyseusUtils.onPlayerJoined((p) => {
                 if (p) {
@@ -320,6 +344,12 @@
         return true;
     };
 
+    Game_Actor.prototype.attackSkillId = function () {
+        const index = $gameParty.allMembers().indexOf(this);
+        return index === 0 ? charMappings.skills.basic[ColyseusUtils.getCurrentPlayer().charId] :
+            charMappings.skills.basic[ColyseusUtils.getPlayers()[index-1].charId];
+    }
+
     //=============================================================================
     // Battle
     //=============================================================================
@@ -347,7 +377,8 @@
                 })),
             });
         }
-        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, ColyseusUtils.getCurrentPlayer().name, true);
+        const player = ColyseusUtils.getCurrentPlayer();
+        ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, player.name, player.charId, true);
         this.ajustBalancing();
     }
 
@@ -378,9 +409,11 @@
                 m.setHp(9999999);
                 ColyseusUtils.sendUpdateHealth(9999999);
             });
-            ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, ColyseusUtils.getCurrentPlayer().name, false);
+            const player = ColyseusUtils.getCurrentPlayer();
+            ColyseusUtils.saveInfo(ColyseusUtils.colyseusRoom.reconnectionToken, player.name, player.charId, false);
         } else {
-            ColyseusUtils.saveInfo(undefined, ColyseusUtils.getCurrentPlayer().name, false);
+            const player = ColyseusUtils.getCurrentPlayer();
+            ColyseusUtils.saveInfo(undefined, player.name, player.charId, false);
         }
 
         if (!this._calledBattleEnded) {
@@ -599,7 +632,7 @@
         _Scene_Battle_update.apply(this, arguments);
 
         if (this._isRechargingButtons) {
-            this._buttonsRechargeVal -= 1.66 / ColyseusUtils.abilityRechargeSeconds / (this._currentRechargingActionType === 's' ? 3 : 1);
+            this._buttonsRechargeVal -= 1.66 / ColyseusUtils.abilityRechargeSeconds / (this._currentRechargingActionType === 'a' && this._currentRechargingSkillId ? 2.2 : 1);
             this._attackButton.setValue(this._buttonsRechargeVal);
             this._guardButton.setValue(this._buttonsRechargeVal);
             this._specialButton.setValue(this._buttonsRechargeVal);
@@ -808,7 +841,7 @@
         Sprite_Battler.prototype.updateBitmap.call(this);
         // const name = this._actor.battlerName();
         const battlerIndex = this._battler.index();
-        const name = "Actor1_" + ((battlerIndex === 0 ? ColyseusUtils.getCurrentPlayer() : (ColyseusUtils.getPlayers()[battlerIndex-1] || {charId: 0})).charId + 1);
+        const name = "SF_Actor1_" + ((battlerIndex === 0 ? ColyseusUtils.getCurrentPlayer() : (ColyseusUtils.getPlayers()[battlerIndex-1] || {charId: 0})).charId + 1);
         if (this._battlerName !== name) {
             this._battlerName = name;
             this._mainSprite.bitmap = ImageManager.loadSvActor(name);
@@ -1171,12 +1204,20 @@
             actor['externalPlayer'] = p;
         });
     }
-    //
-    // const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
-    // Game_Actor.prototype.initMembers = function () {
-    //     _Game_Actor_initMembers.apply(this, arguments);
-    //     this._specialSkill = charMappings.skills.specials[ColyseusUtils];
-    // }
+
+    const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
+    Game_Actor.prototype.initMembers = function () {
+        _Game_Actor_initMembers.apply(this, arguments);
+        this._customBattler = "";
+    }
+
+    Game_Actor.prototype.setCustomBattler = function (name) {
+        this._customBattler = name;
+    }
+
+    Game_Actor.prototype.battlerName = function () {
+        return this._customBattler;
+    }
 
     //-----------------------------------------------------------------------------
     // Custom button sprite
