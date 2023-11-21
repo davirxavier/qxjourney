@@ -5,7 +5,7 @@
             abilityRechargeShow1: 73,
             abilityRechargeShow2: 74,
             answersShow: 77,
-            showNames: 78,
+            showNames: 600,
             screenMessage: 501,
             showPlayer0: 21,
             showPlayer1: 22,
@@ -361,7 +361,7 @@
     const _Game_Interpreter_command211 = Game_Interpreter.prototype.command211;
     Game_Interpreter.prototype.command211 = function (params) {
         $gamePlayer._followers.data().forEach(f => f.setTransparent(params[0] === 0));
-        $gameSwitches.setValue(uiStorage.switches.showNames, params[0] === 0);
+        $gameSwitches.setValue(uiStorage.switches.showNames, params[0] === 0, true);
         return _Game_Interpreter_command211.apply(this, arguments);
     }
 
@@ -370,7 +370,12 @@
     //=============================================================================
 
     const _BattleManager_setup = BattleManager.setup;
-    BattleManager.setup = function (troopId) {
+    BattleManager.setup = function (troopId, canEscape, canLose, skipCheckCombat) {
+        if (!skipCheckCombat && ColyseusUtils.hasCombat()) {
+            BattleManager.setup(ColyseusUtils.getCurrentCombat().troopId, canEscape, canLose, true);
+            return;
+        }
+
         _BattleManager_setup.apply(this, arguments);
 
         this._calledBattleEnded = false;
