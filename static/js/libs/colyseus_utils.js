@@ -8,6 +8,8 @@ var ColyseusUtils = {
     baseSolveSeconds: 15,
     forceDifficulty: undefined,
     difficulty: 0,
+    skipIntro: false,
+    callbacksRegistered: false,
     onUpdateRoomsCallback: (updateType, roomId, room) => {},
     onUpdateScoresCallback: (scores) => {},
     debugMode: false,
@@ -19,6 +21,7 @@ var ColyseusUtils = {
     eventTypes: {
         ATTACK_EVENT: 0,
         COMBAT_STARTED: 2,
+        SERVER_COMBAT_STARTED: 'combat_started',
         COMBAT_ENDED: 'combat_ended',
         PLAYER_MOVE: 'player_move',
         JOIN_COMBAT: 'join_combat',
@@ -28,6 +31,7 @@ var ColyseusUtils = {
         ENEMY_ATTACK: 'enemy_attack',
         UPDATE_HEALTH: 'update_health',
         GAME_SV_CHANGE: 'game_sv_change',
+        MAP_CHANGED: 'map_changed',
     },
     stateChangePaths: {
         PLAYERS: 'players',
@@ -39,7 +43,8 @@ var ColyseusUtils = {
         ROOM_DELETED: 4212,
     },
 
-    init: async (url) => {
+    init: async (url, skipIntro) => {
+        ColyseusUtils.skipIntro = skipIntro;
         ColyseusUtils.colyseusClient = new Colyseus.Client(url);
 
         const client = ColyseusUtils.colyseusClient;
@@ -218,6 +223,15 @@ var ColyseusUtils = {
             ColyseusUtils.colyseusRoom.state.playersInCombat.includes(ColyseusUtils.colyseusRoom.sessionId);
     },
 
+    sendMapChanged: (oldMapId, newMapId) => {
+        ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.MAP_CHANGED, {oldMapId, newMapId});
+    },
+    onMapChanged: (cb) => {
+        if (cb) {
+            ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.MAP_CHANGED, cb);
+        }
+    },
+
     sendUpdateHealth: (val) => {
         ColyseusUtils.colyseusRoom.send(ColyseusUtils.eventTypes.UPDATE_HEALTH, val);
     },
@@ -228,6 +242,11 @@ var ColyseusUtils = {
                     callback(data.sender, data.health || 0);
                 }
             });
+        }
+    },
+    onCombatStarted: (cb) => {
+        if (cb) {
+            ColyseusUtils.colyseusRoom.onMessage(ColyseusUtils.eventTypes.SERVER_COMBAT_STARTED, cb);
         }
     },
     joinCombat: () => {

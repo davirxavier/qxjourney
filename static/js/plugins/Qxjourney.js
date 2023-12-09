@@ -1,10 +1,9 @@
 (() => {
     const uiStorage = {
         switches: {
-            abilityRechargeShow0: 72,
-            abilityRechargeShow1: 73,
-            abilityRechargeShow2: 74,
-            answersShow: 77,
+            ignored: {
+                75: true,
+            },
             showNames: 600,
             screenMessage: 501,
             showPlayer0: 21,
@@ -57,6 +56,12 @@
             showPlayer47: 68,
             showPlayer48: 69,
             showPlayer49: 70,
+            abilityRechargeShow0: 72,
+            abilityRechargeShow1: 73,
+            abilityRechargeShow2: 74,
+            inIntro: 75,
+            skipIntro: 76,
+            answersShow: 77,
             showPlayerCombat0: 81,
             showPlayerCombat49: 130,
         },
@@ -186,8 +191,6 @@
 
     MathGenerator.gen1 = function () {
         const max = this.makeMaxNumber();
-        console.log(max)
-        console.log(ColyseusUtils.difficulty)
         const op1 = this.randomIntFromInterval(0, max);
         const op2 = this.randomIntFromInterval(0, max);
 
@@ -236,6 +239,7 @@
         DataManager.setupNewGame();
         $gameSystem.disableMenu();
 
+        $gameSwitches.setValue(uiStorage.switches.skipIntro, ColyseusUtils.skipIntro, true);
         $gameVariables.setValue(uiStorage.variables.playerName49, ColyseusUtils.getCurrentPlayer().name, true);
         $gameSwitches.setValue(uiStorage.switches.showPlayer49, true, true);
 
@@ -258,7 +262,7 @@
         _SceneManager_onSceneStart.apply(this, arguments);
 
         $gamePlayer._followers.updateFollowerInfo();
-        if (!this._registerCallbacks) {
+        if (!ColyseusUtils.callbacksRegistered) {
             ColyseusUtils.onPlayerMovement(() => {
                 $gamePlayer._followers.updateFollowerInfo();
             });
@@ -277,19 +281,45 @@
             playerParty.setName(player.name);
             playerParty.learnSkill(charMappings.skills.specials[player.charId]);
 
-            ColyseusUtils.getPlayers().forEach(p => $gamePlayer._followers.onPlayerJoined(p));
-            ColyseusUtils.onPlayerJoined((p) => {
-                if (p) {
-                    const follower = $gamePlayer._followers.getBySessionId(p.sessionId);
+            const players = ColyseusUtils.getPlayers();
+            players.forEach(p => $gamePlayer._followers.onPlayerJoined(p, players.findIndex(pl => pl.sessionId === p.sessionId)));
+            ColyseusUtils.onPlayerJoined((event) => {
+                if (event) {
+                    const follower = $gamePlayer._followers.getBySessionId(event.p.sessionId);
                     if (follower) {
                         // TODO do
                     } else {
-                        $gamePlayer._followers.onPlayerJoined(p);
+                        const list = Object.keys(event.all).map(sid => ({...event.all[sid], sessionId: sid}));
+                        list.sort((p1, p2) => p1.sessionId.localeCompare(p2.sessionId));
+
+                        const followerIndex = list.findIndex(ap => ap.sessionId === event.p.sessionId);
+                        if (followerIndex >= 0) {
+                            $gamePlayer._followers.onPlayerJoined(event.p, followerIndex);
+                        } else {
+                            console.warn('Follower could not be instantiated');
+                        }
                     }
                 }
             });
 
-            this._registerCallbacks = true;
+            setTimeout(() => {
+                let csInterval = setInterval(() => {
+                    if (!$gameSwitches.value(uiStorage.switches.inIntro)) {
+                        ColyseusUtils.onCombatStarted((message) => {
+                            if (!$gameParty.inBattle() && message && message.sender !== ColyseusUtils.getCurrentPlayer().sessionId && message.troopId) {
+                                BattleManager.setup(message.troopId, false, false);
+                                $gamePlayer.makeEncounterCount();
+                                SceneManager.push(Scene_Battle);
+                            }
+                        });
+
+                        if (csInterval) {
+                            clearInterval(csInterval);
+                        }
+                    }
+                }, 1000);
+            }, 2000);
+            ColyseusUtils.callbacksRegistered = true;
         }
 
         if (SceneManager._scene instanceof Scene_Map &&
@@ -323,7 +353,7 @@
     Game_Switches.prototype.setValue = function (switchId, value, omitEvent) {
         _Game_Switches_setValue.apply(this, arguments);
 
-        if (!omitEvent && switchId > 0 && switchId < $dataSystem.switches.length) {
+        if (!omitEvent && switchId > 0 && switchId < $dataSystem.switches.length && !uiStorage.switches.ignored[switchId]) {
             ColyseusUtils.sendGameVariableChanged(switchId, value, false);
         }
     }
@@ -358,11 +388,18 @@
             charMappings.skills.basic[ColyseusUtils.getPlayers()[index-1].charId];
     }
 
-    const _Game_Interpreter_command211 = Game_Interpreter.prototype.command211;
+    // const _Game_Interpreter_command211 = Game_Interpreter.prototype.command211;
     Game_Interpreter.prototype.command211 = function (params) {
         $gamePlayer._followers.data().forEach(f => f.setTransparent(params[0] === 0));
         $gameSwitches.setValue(uiStorage.switches.showNames, params[0] === 0, true);
-        return _Game_Interpreter_command211.apply(this, arguments);
+        $gamePlayer.setTransparent(params[0] === 0);
+        return true;
+    }
+
+    const _Game_Player_reserveTransfer = Game_Player.prototype.reserveTransfer;
+    Game_Player.prototype.reserveTransfer = function (mapId) {
+        _Game_Player_reserveTransfer.apply(this, arguments);
+        ColyseusUtils.sendMapChanged($gameMap.mapId(), mapId);
     }
 
     //=============================================================================
@@ -984,6 +1021,17 @@
                 $gameParty[index].setHp(health);
             }
         });
+
+        ColyseusUtils.onMapChanged((message) => {
+            if (message && message.sender && message.newMapId) {
+                const p = ColyseusUtils.getPlayers().findIndex(p => p.sessionId === message.sender);
+                if (p >= 0) {
+                    const follower = this._followers.data()[p];
+                    follower.setPosition(this._followers.getStartingPos().x, this._followers.getStartingPos().y);
+                    follower.setTransparent(message.newMapId !== $gameMap.mapId());
+                }
+            }
+        });
     }
 
     const _Game_Player_initMembers = Game_Player.prototype.initMembers;
@@ -1131,20 +1179,20 @@
         return this._startingPos;
     };
 
-    Game_Followers.prototype.onPlayerJoined = function(p) {
-        const followerIndex = this._data.findIndex(f => f.isTransparent())
+    Game_Followers.prototype.onPlayerJoined = function(p, followerIndex) {
         const follower = this._data[followerIndex];
-        follower.setTransparent(false);
         follower._isRunning = p.isRunning;
         follower._externalPlayer = p;
-        follower.setPosition(this.getStartingPos().x, this.getStartingPos().y);
         follower.setCustomChar("SF_Actor1", p.charId);
 
+        const isSameMap = p.mapNum === $gameMap.mapId();
+        follower.setTransparent(!isSameMap);
+        follower.setPosition(isSameMap ? this.getStartingPos().x : 0, isSameMap ? this.getStartingPos().y : 0);
+
         $gameVariables.setValue(uiStorage.variables.playerName0 + followerIndex, p.name, true);
-        $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, true, true);
+        $gameSwitches.setValue(uiStorage.switches.showPlayer0 + followerIndex, isSameMap, true);
 
         const playerIndex = ColyseusUtils.getPlayers().findIndex(pp => pp.sessionId === p.sessionId)+1;
-        console.log($gameParty.allMembers())
         if (playerIndex >= 0) {
             $gameParty.allMembers()[playerIndex].setName(p.name);
         }
@@ -1199,6 +1247,10 @@
                 gf._targetY = p.y !== gf._y ? p.y : undefined;
                 gf._isRunning = p.isRunning;
             }
+
+            const isSameMap = p.mapNum === $gameMap.mapId();
+            gf.setTransparent(!isSameMap);
+            $gameSwitches.setValue(uiStorage.switches.showPlayer0 + i, isSameMap, true);
         });
     };
 

@@ -78,6 +78,10 @@
         <h2 style="font-size: 4vw;" class="fw-bold">QxJourney</h2>
         <label for="nameField" class="w-100 text-center" style="font-size: 3vw;">Qual é o seu nome?</label>
         <input id="nameField" class="w-50 form-control form-control-lg mt-4 text-center" type="text" placeholder="Seu nome" minlength="1">
+        <label style="font-size: 1.8rem !important;" class="mt-2 d-flex align-items-center justify-content-center">
+            <input type="checkbox" id="skip-intro-check">
+            <span style="user-select: none">&nbsp;Pular introdução?</span>
+        </label>
         <button onclick="selectChar()" class="mt-4 btn btn-primary" style="font-size: 2vw;">Iniciar jogo!</button>
         <a class="link-primary cursor-pointer mt-3" onclick="toggleScores()">Lista de Pontuações</a>
     </div>
@@ -110,7 +114,7 @@
         <hr class="w-100">
         <label for="roomNameField" style="font-size: 2vw;">Ou crie uma equipe nova:</label>
         <div class="d-flex flex-column justify-content-center align-items-center">
-            <input id="roomNameField" type="text" placeholder="Nome da sala" class="form-control mb-2">
+            <input id="roomNameField" type="text" placeholder="Nome da equipe" class="form-control mb-2">
             <input id="roomMaxField" type="number" max="20" placeholder="Jogadores máximos" class="form-control mb-2">
             <select id="room-diff" type="number" class="form-select mb-1">
                 <option value="-1">Escolha o nível desejado</option>
@@ -406,7 +410,7 @@
                 const url = (window.location.protocol.startsWith('https') ? 'wss://' : 'ws://') + window.location.host +
                     (window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/game')));
                 console.log('Connecting to: '+ url);
-                ColyseusUtils.init(url)
+                ColyseusUtils.init(url, document.getElementById('skip-intro-check').checked)
                     .then(() => showSpinner(false, [nameContainer]))
                     .then(() => {
                         console.log('Connected to server.')

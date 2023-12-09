@@ -197,7 +197,7 @@ export class GameRoom extends Room<GameState> {
                 }
             } else if (message && message.type === PlayerEvents.COMBAT_STARTED) {
                 const data = new CombatStartedEvent(message.data);
-                if (data.enemies && data.enemies.length > 0) {
+                if (!this.state.combat.ongoing && data.enemies && data.enemies.length > 0) {
                     this.state.startCombat(data, message.sender);
                     enemyAttackInterval = [];
 
@@ -205,7 +205,7 @@ export class GameRoom extends Room<GameState> {
                         const interval = parseInt(e.enemyAttackInterval as any, 10) || 0;
                         if (interval > 0) {
                             let specialCounter = 0;
-                            setTimeout(() => {
+                            this.clock.setTimeout(() => {
                                 enemyAttackInterval[i] = this.clock.setInterval(() => {
                                     if (this.state.combat.ongoing && e.enemyHealth > 0) {
                                         const isSpecial = specialCounter >= 4;
@@ -221,14 +221,20 @@ export class GameRoom extends Room<GameState> {
                                     } else if (enemyAttackInterval[i]) {
                                         enemyAttackInterval[i].clear();
                                     }
-                                }, (scale(this.state.difficulty, [0, 8], [interval*1000*2.2, interval*1000])) || 0);
-                            }, scale(this.state.difficulty, [0, 8], [5000, 0]));
+                                }, scale(this.state.difficulty, [0, 8], [interval*1000*2.2, interval*1000*1.2]));
+                            }, scale(this.state.difficulty, [0, 8], [3000, 0]));
                         }
                     });
+                    this.broadcast(Events.COMBAT_STARTED, {...data, sender: eventClient.sessionId});
                 }
             }
 
             this.clock.setTimeout(() => this.broadcast('player_event', message), 5);
+        });
+
+        this.onMessage(Events.MAP_CHANGED, (client, message: {oldMapId: number, newMapId: number}) => {
+            this.state.players.get(client.sessionId).mapNum = message.newMapId;
+            this.broadcast(Events.MAP_CHANGED, {...message, sender: client.sessionId});
         });
 
         this.onMessage(Events.JOIN_COMBAT, (client) => {
@@ -264,7 +270,8 @@ export class GameRoom extends Room<GameState> {
 
     async onJoin(client: Client, options): Promise<any> {
         client.send(Events.EVENT_LIST, ({...Events}));
-        this.broadcast(Events.PLAYER_JOINED, this.state.createPlayer(client.sessionId, options.name, parseInt(options.charId) || 0));
+        const p = this.state.createPlayer(client.sessionId, options.name, parseInt(options.charId) || 0);
+        this.broadcast(Events.PLAYER_JOINED, {p, all: this.state.players});
     }
 
     async removePlayer(sessionId: string) {
