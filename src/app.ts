@@ -9,13 +9,13 @@ const transport = new uWebSocketsTransport({sendPingsAutomatically: true});
 const app = expressify(transport.app);
 
 app.use(express.json());
-app.use('/game', express.static('static'));
+app.use('/game', express.static('./static'));
 
 // Not found path
 app.use('*', (req, res) => {
   console.log(`Not found: ${req.baseUrl}`);
   res.status(404);
-  res.sendFile(__dirname + '/pages/not_found.html');
+  res.redirect('/pages/not_found.html');
 });
 
 const gameServer = new Server({transport});
